@@ -4,7 +4,7 @@
 <!-- Hero Section -->
 <section id="hero" class="hero section">
     <div class="hero-bg">
-      <img src="{{ asset('frontend/assets/img/hero-bg-light.webp') }}" alt="">
+      <img src="{{ asset('frontend/assets/img/45667547.webp') }}" alt="">
     </div>
     <div class="container text-center">
       <div class="d-flex flex-column justify-content-center align-items-center">
@@ -13,11 +13,10 @@
         <div class="d-flex" data-aos="fade-up" data-aos-delay="200">
           <a href="#portal" class="btn-get-started">Mulai Sekarang</a>
         </div>
-        <img src="{{ asset('frontend/assets/img/hero-services-img.webp') }}" class="img-fluid hero-img" alt="" data-aos="zoom-out" data-aos-delay="300">
+        <img src="{{ asset('frontend/assets/img/4978784.webp') }}" class="img-fluid hero-img" alt="" data-aos="zoom-out" data-aos-delay="300">
       </div>
     </div>
-  
-  </section><!-- /Hero Section -->
+  </section>
 
 <!-- Services Section -->
 <section id="portal" class="services section my-5">
@@ -54,12 +53,12 @@
     </div>
 </section>
 
-  <script>
+<script>
     // Data dummy untuk simulasi pencarian
     const dummyData = [
-      { nik: '1234567890', nama: 'John Doe', alamat: 'Jl. Merdeka No. 123' },
-      { nik: '0987654321', nama: 'Jane Doe', alamat: 'Jl. Sudirman No. 456' },
-      { nik: '1122334455', nama: 'Alice Smith', alamat: 'Jl. Gatot Subroto No. 789' },
+      { nik: '1234567890', nama: 'John Doe', alamat: 'Jl. Merdeka No. 123', halaman: '/halaman/john' },
+      { nik: '0987654321', nama: 'Jane Doe', alamat: 'Jl. Sudirman No. 456', halaman: '/halaman/jane' },
+      { nik: '1122334455', nama: 'Alice Smith', alamat: 'Jl. Gatot Subroto No. 789', halaman: '/halaman/alice' },
     ];
   
     document.getElementById('searchForm').addEventListener('submit', function(event) {
@@ -83,7 +82,15 @@
         filteredData.forEach(item => {
           const liElement = document.createElement('li');
           liElement.classList.add('list-group-item');
-          liElement.textContent = `${item.nik} - ${item.nama} - ${item.alamat}`;
+  
+          // Buat elemen anchor (tautan)
+          const aElement = document.createElement('a');
+          aElement.href = item.halaman; // Tautan ke halaman yang diinginkan
+          aElement.textContent = `${item.nik} - ${item.nama}`;
+          aElement.classList.add('text-decoration-none', 'text-dark');
+  
+          // Masukkan tautan ke dalam li
+          liElement.appendChild(aElement);
           ulElement.appendChild(liElement);
         });
   
@@ -94,5 +101,5 @@
         searchResults.innerHTML = '<span class="badge bg-warning py-2 px-3">Tidak ada NIK yang ditemukan. Coba lagi!</span>';
       }
     });
-  </script>
+  </script>  
 @endsection
