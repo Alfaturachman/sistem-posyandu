@@ -7,7 +7,9 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\PortalController;
 
 // Frontend Routes
-Route::get('/', [HomeController::class, 'index']);
+Route::get('/', [PortalController::class, 'index']);
+Route::get('/cari-pemeriksaan', [PortalController::class, 'cariPemeriksaan']);
+Route::get('/portal/show/{nik}', [PortalController::class, 'show']);
 // Route::get('/portal', [PortalController::class, 'index']);
 
 // Backend Routes

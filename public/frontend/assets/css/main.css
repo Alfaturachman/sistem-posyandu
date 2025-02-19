@@ -1,23 +1,11 @@
-/**
-* Template Name: QuickStart
-* Template URL: https://bootstrapmade.com/quickstart-bootstrap-startup-website-template/
-* Updated: Aug 07 2024 with Bootstrap v5.3.3
-* Author: BootstrapMade.com
-* License: https://bootstrapmade.com/license/
-*/
-
-/*--------------------------------------------------------------
-# Font & Color Variables
-# Help: https://bootstrapmade.com/color-system/
---------------------------------------------------------------*/
 /* Fonts */
 :root {
     --default-font: "Roboto", system-ui, -apple-system, "Segoe UI", Roboto,
         "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif,
-        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Plus Jakarta Sans",
         "Noto Color Emoji";
-    --heading-font: "Nunito", sans-serif;
-    --nav-font: "Inter", sans-serif;
+    --heading-font: "Plus Jakarta Sans", sans-serif;
+    --nav-font: "Plus Jakarta Sans", sans-serif;
 }
 
 /* Global Colors - The following color variables are used throughout the website. Updating them here will change the color scheme of the entire website */
@@ -28,6 +16,7 @@
     --accent-color: #388da8; /* Accent color that represents your brand on the website. It's used for buttons, links, and other elements that need to stand out */
     --surface-color: #ffffff; /* The surface color is used as a background of boxed elements within sections, such as cards, icon boxes, or other elements that require a visual separation from the global background. */
     --contrast-color: #ffffff; /* Contrast color for text, ensuring readability against backgrounds of accent, heading, or default colors. */
+    --grey-background-color: #f9f9f9; /* Primary color for the website, used for primary buttons, links, and other elements that need to stand out */
 }
 
 /* Nav Menu Colors - The following color variables are used specifically for the navigation menu. They are separate from the global colors to allow for more customization options */
@@ -518,8 +507,8 @@ h6 {
 # Global Footer
 --------------------------------------------------------------*/
 .footer {
-    color: var(--default-color);
-    background-color: var(--background-color);
+    color: var(--surface-color);
+    background-color: var(--accent-color);
     font-size: 14px;
     padding-bottom: 25px;
     position: relative;
@@ -531,7 +520,7 @@ h6 {
 
 .footer .footer-about .logo {
     line-height: 1;
-    margin-bottom: 25px;
+    margin-bottom: 10px;
 }
 
 .footer .footer-about .logo img {
@@ -544,12 +533,12 @@ h6 {
     font-weight: 700;
     letter-spacing: 1px;
     font-family: var(--heading-font);
-    color: var(--heading-color);
+    color: var(--surface-color);
 }
 
 .footer .footer-about p {
     font-size: 14px;
-    font-family: var(--heading-font);
+    font-family: var(--surface-font);
 }
 
 .footer .social-links a {
@@ -559,9 +548,9 @@ h6 {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    border: 1px solid color-mix(in srgb, var(--default-color), transparent 50%);
+    border: 1px solid color-mix(in srgb, var(--surface-color), transparent 50%);
     font-size: 16px;
-    color: color-mix(in srgb, var(--default-color), transparent 30%);
+    color: color-mix(in srgb, var(--surface-color), transparent 30%);
     margin-right: 10px;
     transition: 0.3s;
 }
@@ -665,7 +654,7 @@ h6 {
     padding-top: 25px;
     padding-bottom: 25px;
     border-top: 1px solid
-        color-mix(in srgb, var(--default-color), transparent 90%);
+        color-mix(in srgb, var(--surface-color), transparent 75%);
 }
 
 .footer .copyright p {
@@ -812,7 +801,7 @@ section,
 .section {
     color: var(--default-color);
     background-color: var(--background-color);
-    padding: 60px 0;
+    padding: 150px 0;
     scroll-margin-top: 100px;
     overflow: clip;
 }
@@ -1956,8 +1945,8 @@ section,
 }
 
 /*--------------------------------------------------------------
-# Starter Section Section
+# Detail Anak Section
 --------------------------------------------------------------*/
-.starter-section {
-    /* Add your styles here */
+.riwayat-anak {
+    background-color: var(--grey-background-color);
 }

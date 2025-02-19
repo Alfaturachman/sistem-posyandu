@@ -19,7 +19,7 @@
   </section>
 
 <!-- Services Section -->
-<section id="portal" class="services section my-5">
+<section id="portal" class="services section">
     <!-- Section Title -->
     <div class="container section-title" data-aos="fade-up">
       <h2>Portal Anak</h2>
@@ -44,7 +44,6 @@
                     </div>
                   </form>
                   <div id="searchResults" class="mt-3">
-                    <!-- Hasil pencarian akan ditampilkan di sini -->
                   </div>
                 </div>
             </div>
@@ -54,52 +53,52 @@
 </section>
 
 <script>
-    // Data dummy untuk simulasi pencarian
-    const dummyData = [
-      { nik: '1234567890', nama: 'John Doe', alamat: 'Jl. Merdeka No. 123', halaman: '/halaman/john' },
-      { nik: '0987654321', nama: 'Jane Doe', alamat: 'Jl. Sudirman No. 456', halaman: '/halaman/jane' },
-      { nik: '1122334455', nama: 'Alice Smith', alamat: 'Jl. Gatot Subroto No. 789', halaman: '/halaman/alice' },
-    ];
-  
-    document.getElementById('searchForm').addEventListener('submit', function(event) {
-      event.preventDefault(); // Mencegah form submit
-  
-      const searchInput = document.getElementById('searchInput').value.toLowerCase();
-      const searchResults = document.getElementById('searchResults');
-  
-      // Filter data berdasarkan NIK
-      const filteredData = dummyData.filter(item => item.nik.includes(searchInput));
-  
-      // Kosongkan hasil pencarian sebelumnya
-      searchResults.innerHTML = '';
-  
-      if (filteredData.length > 0) {
-        // Buat elemen ul untuk menampilkan hasil pencarian
-        const ulElement = document.createElement('ul');
-        ulElement.classList.add('list-group');
-  
-        // Tambahkan item hasil pencarian ke dalam ul
-        filteredData.forEach(item => {
-          const liElement = document.createElement('li');
-          liElement.classList.add('list-group-item');
-  
-          // Buat elemen anchor (tautan)
-          const aElement = document.createElement('a');
-          aElement.href = item.halaman; // Tautan ke halaman yang diinginkan
-          aElement.textContent = `${item.nik} - ${item.nama}`;
-          aElement.classList.add('text-decoration-none', 'text-dark');
-  
-          // Masukkan tautan ke dalam li
-          liElement.appendChild(aElement);
-          ulElement.appendChild(liElement);
+document.getElementById('searchForm').addEventListener('submit', function(event) {
+    event.preventDefault(); // Mencegah form submit secara default
+
+    const searchInput = document.getElementById('searchInput').value;
+    const searchResults = document.getElementById('searchResults');
+
+    // Kosongkan hasil pencarian sebelumnya
+    searchResults.innerHTML = '';
+
+    // Ambil data dari server
+    fetch(`/cari-pemeriksaan?nik=${searchInput}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Data tidak ditemukan');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.anak) {
+                // Buat elemen ul untuk menampilkan hasil pencarian
+                const ulElement = document.createElement('ul');
+                ulElement.classList.add('list-group');
+
+                // Tampilkan data anak dengan anchor
+                const anakElement = document.createElement('li');
+                anakElement.classList.add('list-group-item', 'fw-bold');
+
+                // Buat elemen anchor (tautan)
+                const anakLink = document.createElement('a');
+                anakLink.href = `/portal/show/${data.anak.nik}`;
+                anakLink.textContent = `NIK: ${data.anak.nik} - Nama: ${data.anak.nama_anak}`;
+                anakLink.classList.add('text-decoration-none', 'text-dark', 'w-100', 'd-block');
+
+                // Tambahkan anchor ke dalam li
+                anakElement.appendChild(anakLink);
+                ulElement.appendChild(anakElement);
+
+                // Tambahkan ul ke dalam div hasil pencarian
+                searchResults.appendChild(ulElement);
+            } else {
+                searchResults.innerHTML = '<span class="badge bg-warning py-2 px-3">Data tidak ditemukan. Coba lagi!</span>';
+            }
+        })
+        .catch(error => {
+            searchResults.innerHTML = '<span class="badge bg-warning py-2 px-3">Terjadi kesalahan. Coba lagi!</span>';
         });
-  
-        // Tambahkan ul ke dalam div hasil pencarian
-        searchResults.appendChild(ulElement);
-      } else {
-        // Tampilkan pesan jika tidak ada hasil
-        searchResults.innerHTML = '<span class="badge bg-warning py-2 px-3">Tidak ada NIK yang ditemukan. Coba lagi!</span>';
-      }
-    });
-  </script>  
+});
+</script>
 @endsection
