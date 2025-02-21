@@ -1,4 +1,5 @@
-@extends('frontend.layouts.app') @section('content')
+@extends('frontend.layouts.app')
+@section('content')
 <section id="hero" class="hero section">
     <div class="hero-bg">
       <img src="{{ asset('frontend/assets/img/45667547.webp') }}" alt="">

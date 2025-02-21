@@ -1,5 +1,7 @@
 @extends('frontend.layouts.app')
 
+@section('title', 'Home')
+
 @section('content')
 <!-- Hero Section -->
 <section id="hero" class="hero section">

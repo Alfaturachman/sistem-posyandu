@@ -15,8 +15,11 @@
                             Silahkan untuk periksa data anak dengan mengisi form di bawah ini.
                         </div>
                     </div>
-                    <div class="d-block align-items-center justify-content-center mb-3">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
                         <h5>Detail Identitas Anak</h5>
+                        <a class="btn btn-warning" href="{{ route('edit-identitas', $anak->id) }}">
+                            <i class="ti ti-edit"></i> Edit Identitas
+                        </a>                        
                     </div>
                     <div class="table-responsive mb-3">
                         <table class="table">
@@ -30,19 +33,15 @@
                             </tr>
                             <tr>
                                 <th>Tanggal Lahir</th>
-                                <td>{{ date('d-m-Y', strtotime($anak->tanggal_lahir)) }}</td>
+                                <td>{{ \Carbon\Carbon::parse($anak->tanggal_lahir)->translatedFormat('d F Y') }}</td>
                             </tr>
                             <tr>
                                 <th>Jenis Kelamin</th>
                                 <td>{{ $anak->jenis_kelamin }}</td>
                             </tr>
                             <tr>
-                                <th>Alamat</th>
-                                <td>{{ $anak->alamat }}</td>
-                            </tr>
-                            <tr>
                                 <th>Nama Orang Tua/Wali</th>
-                                <td>{{ $anak->nama_orang_tua }}</td>
+                                <td>{{ $anak->nama_ibu }}</td>
                             </tr>
                         </table>
                     </div>

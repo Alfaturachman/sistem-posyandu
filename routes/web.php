@@ -14,6 +14,7 @@ Route::get('/cari-pemeriksaan', [PortalController::class, 'cariPemeriksaan']);
 Route::get('/portal/show/{nik}', [PortalController::class, 'show']);
 // Route::get('/portal', [PortalController::class, 'index']);
 
+// Backend Routes Login
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 
@@ -23,11 +24,17 @@ Route::get('/forgot-password', function () {
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// Backend Routes Dashboard
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-Route::get('/daftar-anak', [DaftarAnakController::class, 'index'])->name('daftar-anak');
-Route::get('/anak/create', [DaftarAnakController::class, 'create'])->name('anak.create');
-Route::post('/anak/store', [DaftarAnakController::class, 'store'])->name('anak.store');
 
+// Backend Routes Daftar Anak
+Route::get('/daftar-anak', [DaftarAnakController::class, 'index'])->name('daftar-anak');
+Route::post('/daftar/store', [DaftarAnakController::class, 'store'])->name('daftar.store');
+
+// Backend Routes Periksa Anak
 Route::get('/hasil', [PeriksaAnakController::class, 'hasil'])->name('hasil');
 Route::get('/hasil/{id}', [PeriksaAnakController::class, 'hasil_detail'])->name('anak.detail');
+Route::get('/hasil/edit-identitas/{id}', [PeriksaAnakController::class, 'edit_identitas'])->name('edit-identitas');
+Route::post('/hasil/update-identitas/{id}', [PeriksaAnakController::class, 'update_identitas'])->name('update-identitas');
 Route::get('/periksa', [PeriksaAnakController::class, 'periksa'])->name('periksa');
+Route::post('/periksa/store', [PeriksaAnakController::class, 'store'])->name('periksa.store');

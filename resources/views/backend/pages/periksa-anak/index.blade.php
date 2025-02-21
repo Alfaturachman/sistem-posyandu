@@ -23,7 +23,7 @@
                             <thead>
                                 <tr>
                                     <th class="text-start">NIK</th>
-                                    <th>Nama</th>
+                                    <th>Nama Anak</th>
                                     <th>Tanggal Lahir</th>
                                     <th>Jenis Kelamin</th>
                                     <th>Aksi</th>
@@ -34,7 +34,7 @@
                                 <tr>
                                     <td class="text-start">{{ $anak->nik }}</td>
                                     <td>{{ $anak->nama_anak }}</td>
-                                    <td>{{ date('d-m-Y', strtotime($anak->tanggal_lahir)) }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($anak->tanggal_lahir)->translatedFormat('d F Y') }}</td>
                                     <td>{{ $anak->jenis_kelamin }}</td>
                                     <td>
                                         <a href="{{ route('anak.detail', $anak->id) }}" class="btn btn-primary btn-sm">
@@ -52,4 +52,3 @@
     </div>
 </div>
 @endsection
-

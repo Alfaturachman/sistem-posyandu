@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Modernize Free</title>
+    <title>Login</title>
     <link
         rel="stylesheet"
         href="{{ asset('backend/src/assets/images/logos/favicon.png') }}" />

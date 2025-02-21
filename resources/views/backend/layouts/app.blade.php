@@ -40,7 +40,7 @@
 
     <script>
         $(document).ready(function() {
-            $('#search_nik').select2({
+            $('#id_anak').select2({
                 placeholder: "Pilih NIK",
                 width: '100%'
             });
