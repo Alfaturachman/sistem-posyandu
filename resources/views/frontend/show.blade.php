@@ -111,38 +111,64 @@
                 <div class="mt-4">
                     <div class="card">
                         <div class="card-body">
-                            <div id="chart"></div>
+                            <canvas height="400" id="chart"></canvas>
                         </div>
                     </div>
                 </div>
 
-                <!-- Include ApexCharts -->
-                <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+                <!-- Include Chart.js -->
+                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                 <script>
-                    var options = {
-                        chart: {
-                            type: 'bar',
-                            height: 350
-                        },
-                        title: {
-                            text: "Hasil Pemeriksaan pada Tahun {{ date('Y') }}",
-                            align: 'center',
-                            style: {
-                                fontSize: '18px',
-                                fontWeight: 'bold'
-                            }
-                        },
-                        series: [{
-                            name: 'Jumlah Pemeriksaan',
-                            data: @json($chartData)
-                        }],
-                        xaxis: {
-                            categories: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
-                        }
-                    };
+                    var ctx = document.getElementById('chart').getContext('2d');
 
-                    var chart = new ApexCharts(document.querySelector("#chart"), options);
-                    chart.render();
+                    var chartData = @json($chartData);
+
+                    var chart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],
+                            datasets: [{
+                                label: 'Jumlah Pemeriksaan',
+                                data: chartData,
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                borderWidth: 2,
+                                pointRadius: 3,
+                                pointBackgroundColor: 'rgba(75, 192, 192, 1)',
+                                pointHoverRadius: 5,
+                                tension: 0.3 // Efek lengkungan pada garis
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: "Hasil Pemeriksaan pada Tahun {{ date('Y') }}",
+                                    font: {
+                                        size: 18,
+                                        weight: 'bold'
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Bulan'
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Jumlah Pemeriksaan'
+                                    }
+                                }
+                            }
+                        }
+                    });
                 </script>
 
                 <!-- Modal untuk Detail -->
