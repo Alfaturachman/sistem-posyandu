@@ -3,38 +3,56 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DaftarAnakController;
 use App\Http\Controllers\DashboardController;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ImageCitraController;
 use App\Http\Controllers\PeriksaAnakController;
 use App\Http\Controllers\PortalController;
+use Illuminate\Support\Facades\Route;
 
-// Frontend Routes
-Route::get('/', [PortalController::class, 'index']);
-Route::get('/cari-pemeriksaan', [PortalController::class, 'cariPemeriksaan']);
-Route::get('/portal/show/{nik}', [PortalController::class, 'show']);
-// Route::get('/portal', [PortalController::class, 'index']);
+// =======================
+// Frontend Routes (Portal)
+// =======================
+Route::controller(PortalController::class)->group(function () {
+    Route::get('/', 'index');
+    Route::get('/cari-pemeriksaan', 'cariPemeriksaan');
+    Route::get('/portal/show/{nik}', 'show');
+});
 
-// Backend Routes Login
-Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
+// =======================
+// Authentication Routes
+// =======================
+Route::controller(AuthController::class)->group(function () {
+    Route::get('/login', 'showLogin')->name('login');
+    Route::post('/login', 'login');
+    Route::post('/logout', 'logout')->name('logout');
+});
 
-Route::get('/forgot-password', function () {
-    return view('backend.pages.auth.forgot-password');
-})->name('password.request');
+// Forgot Password Route
+Route::view('/forgot-password', 'backend.pages.auth.forgot-password')->name('password.request');
 
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+// =======================
+// Backend Routes (Authenticated)
+// =======================
+Route::middleware(['auth'])->group(function () {
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-// Backend Routes Dashboard
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Daftar Anak
+    Route::controller(DaftarAnakController::class)->prefix('daftar-anak')->group(function () {
+        Route::get('/', 'index')->name('daftar-anak');
+        Route::post('/store', 'store')->name('daftar.store');
+    });
 
-// Backend Routes Daftar Anak
-Route::get('/daftar-anak', [DaftarAnakController::class, 'index'])->name('daftar-anak');
-Route::post('/daftar/store', [DaftarAnakController::class, 'store'])->name('daftar.store');
+    // Periksa Anak
+    Route::controller(PeriksaAnakController::class)->group(function () {
+        Route::get('/hasil', 'hasil')->name('hasil');
+        Route::get('/hasil/{id}', 'hasil_detail')->name('anak.detail');
+        Route::get('/hasil/edit-identitas/{id}', 'edit_identitas')->name('edit-identitas');
+        Route::post('/hasil/update-identitas/{id}', 'update_identitas')->name('update-identitas');
+        Route::get('/periksa', 'periksa')->name('periksa');
+        Route::post('/periksa/store', 'store')->name('periksa.store');
+    });
 
-// Backend Routes Periksa Anak
-Route::get('/hasil', [PeriksaAnakController::class, 'hasil'])->name('hasil');
-Route::get('/hasil/{id}', [PeriksaAnakController::class, 'hasil_detail'])->name('anak.detail');
-Route::get('/hasil/edit-identitas/{id}', [PeriksaAnakController::class, 'edit_identitas'])->name('edit-identitas');
-Route::post('/hasil/update-identitas/{id}', [PeriksaAnakController::class, 'update_identitas'])->name('update-identitas');
-Route::get('/periksa', [PeriksaAnakController::class, 'periksa'])->name('periksa');
-Route::post('/periksa/store', [PeriksaAnakController::class, 'store'])->name('periksa.store');
+    // Image Processing
+    Route::post('/process-image', [ImageCitraController::class, 'processImage'])->name('process.image');
+});

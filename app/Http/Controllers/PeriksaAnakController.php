@@ -5,6 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Anak;
 use App\Models\Pemeriksaan;
 use Illuminate\Http\Request;
+use App\Jobs\ProcessImageJob;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
+use Illuminate\Support\Facades\Storage;
 
 class PeriksaAnakController extends Controller
 {
@@ -60,22 +64,41 @@ class PeriksaAnakController extends Controller
             'citra_telapak_kaki' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
 
-        $data = $request->only([
-            'id_anak',
-            'berat_badan',
-            'tinggi_badan',
-            'lingkar_lengan',
-            'lingkar_kepala'
-        ]);
+        // Simpan data pemeriksaan
+        $data = $request->only(['id_anak', 'berat_badan', 'tinggi_badan', 'lingkar_lengan', 'lingkar_kepala']);
 
         if ($request->hasFile('citra_telapak_kaki')) {
             $file = $request->file('citra_telapak_kaki');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('uploads/citra-telapak-kaki', $filename, 'public');
-            $data['citra_telapak_kaki'] = $path;
+
+            // Simpan file asli
+            $originalPath = $file->store('uploads/originals', 'public');
+
+            // Ambil path lengkap dengan Storage
+            $fullPath = Storage::disk('public')->path($originalPath);
+
+            // Cek apakah file benar-benar ada
+            if (!file_exists($fullPath)) {
+                return response()->json(['error' => 'File tidak ditemukan!'], 404);
+            }
+
+            // Proses gambar dengan Intervention Image
+            $manager = new ImageManager(new Driver());
+            $image = $manager->read($fullPath);
+            $image->greyscale();
+
+            // Simpan hasil olahan dengan nama unik
+            $processedFilename = 'processed_' . time() . '.jpg';
+            $processedPath = 'uploads/processed/' . $processedFilename;
+
+            // Simpan gambar ke storage
+            Storage::disk('public')->put($processedPath, $image->toJpeg(80));
+
+            // Simpan path gambar yang sudah diproses ke dalam database
+            $data['citra_telapak_kaki'] = $processedPath;
         }
 
-        Pemeriksaan::create($data);
+        // Simpan data pemeriksaan ke database
+        $pemeriksaan = Pemeriksaan::create($data);
 
         return redirect()->route('periksa')->with('success', 'Data pemeriksaan berhasil ditambahkan.');
     }

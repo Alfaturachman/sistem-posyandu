@@ -6,7 +6,7 @@
 <style>
     .select2-container .select2-selection--single {
         border: 1px solid #dfe5ef !important;
-        height: 42px !important; 
+        height: 42px !important;
         display: flex !important;
         align-items: center !important;
     }
@@ -35,55 +35,45 @@
                         </div>
                     </div>
 
-                    <form action="{{ route('periksa.store') }}" method="POST" enctype="multipart/form-data">
+                    <form id="form-periksa" action="{{ route('periksa.store') }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         <div class="form-group mb-3">
                             <label for="id_anak" class="form-label">NIK</label>
                             <select id="id_anak" name="id_anak" class="form-control" required>
                                 <option value="">- Pilih NIK Anak -</option>
                                 @foreach($anakList as $anak)
-                                    <option value="{{ $anak->id }}" data-nama="{{ $anak->nama_anak }}">
-                                        {{ $anak->nik }} - {{ $anak->nama_anak }}
-                                    </option>
+                                <option value="{{ $anak->id }}">{{ $anak->nik }} - {{ $anak->nama_anak }}</option>
                                 @endforeach
                             </select>
                         </div>
-                    
+
                         <div class="row">
                             <div class="col-lg-6 mb-3">
                                 <label for="berat_badan" class="form-label">Berat Badan</label>
                                 <input type="number" class="form-control" id="berat_badan" name="berat_badan" placeholder="Masukkan Berat Badan" required>
                             </div>
-                    
                             <div class="col-lg-6 mb-3">
                                 <label for="tinggi_badan" class="form-label">Tinggi Badan</label>
                                 <input type="number" class="form-control" id="tinggi_badan" name="tinggi_badan" placeholder="Masukkan Tinggi Badan" required>
                             </div>
                         </div>
-                    
+
                         <div class="row">
                             <div class="col-lg-6 mb-3">
                                 <label for="lingkar_lengan" class="form-label">Lingkar Lengan</label>
                                 <input type="number" class="form-control" id="lingkar_lengan" name="lingkar_lengan" placeholder="Masukkan Lingkar Lengan" required>
                             </div>
-                    
                             <div class="col-lg-6 mb-3">
                                 <label for="lingkar_kepala" class="form-label">Lingkar Kepala</label>
                                 <input type="number" class="form-control" id="lingkar_kepala" name="lingkar_kepala" placeholder="Masukkan Lingkar Kepala" required>
                             </div>
                         </div>
-                    
+
                         <div class="form-group mb-2">
                             <label for="citra_telapak_kaki" class="form-label">Citra Telapak Kaki</label>
-                            <input type="file" class="form-control" id="citra_telapak_kaki" name="citra_telapak_kaki" accept="image/png, image/jpeg, image/jpg" required onchange="previewImage(event)">
-                            <p class="mt-2" style="color: #ff5757!important;">*Format file: JPG, PNG, JPEG</p>
+                            <input type="file" class="form-control" id="citra_telapak_kaki" name="citra_telapak_kaki" accept="image/*">
                         </div>
-                    
-                        <!-- Preview gambar -->
-                        <div class="mt-3">
-                            <img id="preview" src="#" alt="Preview Gambar" class="img-thumbnail d-none" style="max-width: 200px;">
-                        </div>                        
-                    
+
                         <div class="d-flex justify-content-end mt-3">
                             <button type="submit" class="btn btn-primary">Simpan Periksa</button>
                         </div>
@@ -94,6 +84,28 @@
     </div>
 </div>
 @endsection
+
+<script>
+    document.getElementById("form-periksa").addEventListener("submit", function(event) {
+        event.preventDefault();
+
+        let formData = new FormData(this);
+        formData.append("_token", document.querySelector('meta[name="csrf-token"]').getAttribute("content"));
+
+        fetch("{{ route('periksa.store') }}", {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'Processing') {
+                    alert('Gambar sedang diproses di background.');
+                    window.location.href = "{{ route('periksa') }}";
+                }
+            })
+            .catch(error => console.error("Gagal menyimpan:", error));
+    });
+</script>
 
 <!-- Modal Success -->
 <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
@@ -129,7 +141,7 @@
 <script>
     function previewImage(event) {
         var reader = new FileReader();
-        reader.onload = function(){
+        reader.onload = function() {
             var preview = document.getElementById('preview');
             preview.src = reader.result;
             preview.classList.remove('d-none');

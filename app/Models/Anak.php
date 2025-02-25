@@ -11,8 +11,13 @@ class Anak extends Model
 
     protected $table = 'anak';
     protected $fillable = [
-        'nik', 'nama_anak', 'tempat_lahir', 'tanggal_lahir',
-        'jenis_kelamin', 'golongan_darah', 'nama_ibu'
+        'nik',
+        'nama_anak',
+        'tempat_lahir',
+        'tanggal_lahir',
+        'jenis_kelamin',
+        'golongan_darah',
+        'nama_ibu'
     ];
 
     // Relasi ke Pemeriksaan

@@ -13,6 +13,16 @@ return [
     |
     */
 
+    'aliases' => [
+        // Other aliases
+        'Image' => Intervention\Image\Facades\Image::class,
+    ],
+
+    'providers' => [
+        // Other service providers...
+        Intervention\Image\ImageServiceProvider::class,
+    ],
+
     'name' => env('APP_NAME', 'Laravel'),
 
     /*

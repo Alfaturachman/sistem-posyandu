@@ -10,7 +10,13 @@ class Petugas extends Model
     use HasFactory;
 
     protected $table = 'petugas';
-    protected $fillable = ['username', 'password', 'nama_petugas', 'no_hp', 'alamat'];
+    protected $fillable = [
+        'username',
+        'password',
+        'nama_petugas',
+        'no_hp',
+        'alamat'
+    ];
 
     // Relasi ke Pemeriksaan
     public function pemeriksaans()

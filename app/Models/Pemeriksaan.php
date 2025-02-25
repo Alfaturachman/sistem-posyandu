@@ -11,8 +11,14 @@ class Pemeriksaan extends Model
 
     protected $table = 'pemeriksaan';
     protected $fillable = [
-        'id_anak', 'tanggal_periksa', 'berat_badan', 'tinggi_badan',
-        'lingkar_lengan', 'lingkar_kepala', 'citra_telapak_kaki', 'id_petugas'
+        'id_anak',
+        'tanggal_periksa',
+        'berat_badan',
+        'tinggi_badan',
+        'lingkar_lengan',
+        'lingkar_kepala',
+        'citra_telapak_kaki',
+        'id_petugas'
     ];
 
     // Relasi ke Anak

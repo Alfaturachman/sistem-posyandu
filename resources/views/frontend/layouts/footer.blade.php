@@ -29,9 +29,6 @@
 
   <div class="container copyright text-center mt-4">
     <p>© <span>Copyright</span> 2025 <span>All Rights Reserved</span></p>
-    <div class="credits">
-      Designed by Alfaturachman</a>
-    </div>
   </div>
 
 </footer>
