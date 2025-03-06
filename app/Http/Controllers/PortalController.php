@@ -49,8 +49,11 @@ class PortalController extends Controller
             return abort(404, 'Data anak tidak ditemukan');
         }
 
-        // Ambil data pemeriksaan terkait anak tersebut
-        $pemeriksaans = Pemeriksaan::where('id_anak', $anak->id)->get();
+        // Ambil data pemeriksaan terkait anak tersebut (beserta citra telapak kaki)
+        $pemeriksaans = Pemeriksaan::with('citraTelapakKaki')
+            ->where('id_anak', $anak->id)
+            ->orderBy('tanggal_periksa', 'desc') // Urutkan berdasarkan tanggal terbaru
+            ->get();
 
         // Ambil data pemeriksaan dalam 12 bulan terakhir
         $pemeriksaanPerBulan = Pemeriksaan::where('id_anak', $anak->id)

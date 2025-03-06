@@ -17,7 +17,6 @@ class Pemeriksaan extends Model
         'tinggi_badan',
         'lingkar_lengan',
         'lingkar_kepala',
-        'citra_telapak_kaki',
         'id_petugas'
     ];
 
@@ -32,5 +31,10 @@ class Pemeriksaan extends Model
     {
         return $this->belongsTo(Petugas::class, 'id_petugas');
     }
+
+    // Relasi ke Citra Telapak Kaki
+    public function citraTelapakKaki()
+    {
+        return $this->hasOne(CitraTelapakKaki::class, 'id_pemeriksaan');
+    }
 }
-// Compare this snippet from app/Models/Pemeriksaan.php:

@@ -39,8 +39,13 @@
                                 <tr>
                                     <td class="text-sm-start fw-bold">Tanggal Lahir</td>
                                     <td>:</td>
-                                    <td>{{ $anak->tanggal_lahir }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($anak->tanggal_lahir)->translatedFormat('d F Y') }}</td>
                                 </tr>
+                                <tr>
+                                    <td class="text-sm-start fw-bold">Umur</td>
+                                    <td>:</td>
+                                    <td>{{ \Carbon\Carbon::parse($anak->tanggal_lahir)->age }} tahun</td>
+                                </tr>                                
                                 <tr>
                                     <td class="text-sm-start fw-bold">Jenis Kelamin</td>
                                     <td>:</td>
@@ -211,14 +216,15 @@
                                 </div>
 
                                 <h6><strong>Citra Telapak Kaki</strong></h6>
-                                @if($pemeriksaan->citra_telapak_kaki)
-                                <img src="{{ asset('storage/' . $pemeriksaan->citra_telapak_kaki) }}"
+                                @if($pemeriksaan->citraTelapakKaki->path_citra)
+                                <img src="{{ asset('storage/' . $pemeriksaan->citraTelapakKaki->path_citra) }}"
                                     alt="Citra Telapak Kaki"
                                     class="img-fluid"
-                                    width="200">
+                                    width="300">
                                 @else
                                 <p>Tidak ada gambar.</p>
                                 @endif
+                                <p class="m-0 pt-2">Arch: {{ $pemeriksaan->citraTelapakKaki->clarke_angle }}</p>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
