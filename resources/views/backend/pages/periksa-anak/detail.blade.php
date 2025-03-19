@@ -63,6 +63,7 @@
                                         <th>Tinggi Badan (cm)</th>
                                         <th>Lingkar Lengan (cm)</th>
                                         <th>Lingkar Kepala (cm)</th>
+                                        <th>Citra Kaki</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -73,9 +74,19 @@
                                         <td>{{ $periksa->tinggi_badan }}</td>
                                         <td>{{ $periksa->lingkar_lengan }}</td>
                                         <td>{{ $periksa->lingkar_kepala }}</td>
+                                        <td>
+                                            @if(optional($periksa->citraTelapakKaki)->path_citra)
+                                                <img src="{{ Storage::url($periksa->citraTelapakKaki->path_citra) }}"
+                                                     alt="Citra Telapak Kaki"
+                                                     class="img-fluid"
+                                                     width="300">
+                                            @else
+                                                <p>Tidak ada gambar</p>
+                                            @endif
+                                        </td>                                        
                                     </tr>
                                     @endforeach
-                                </tbody>
+                                </tbody>                                
                             </table>
                         @endif
                     </div>                    

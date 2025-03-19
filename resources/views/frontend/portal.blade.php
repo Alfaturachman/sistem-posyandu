@@ -10,6 +10,7 @@
     </div>
     <div class="container text-center">
         <div class="d-flex flex-column justify-content-center align-items-center">
+            <img src="{{ asset('frontend/assets/img/logo_posyandu.png') }}" class="img-fluid hero-img mb-3" alt="" data-aos="zoom-out" data-aos-delay="300">
             <h1 data-aos="fade-up">Selamat Datang di <span>Posyandu</span></h1>
             <p data-aos="fade-up" data-aos-delay="100">Silahkan untuk melihat hasil pemeriksaan berdasarkan NIK buah hati Anda<br></p>
             <div class="d-flex" data-aos="fade-up" data-aos-delay="200">

@@ -125,9 +125,12 @@
                 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                 <script>
                     var ctx = document.getElementById('chart').getContext('2d');
-
-                    var chartData = @json($chartData);
-
+                
+                    var rawChartData = @json($chartData);
+                
+                    // Ubah nilai 0 menjadi null agar Chart.js tidak menggambar garisnya
+                    var chartData = rawChartData.map(value => value === 0 ? null : value);
+                
                     var chart = new Chart(ctx, {
                         type: 'line',
                         data: {
@@ -141,7 +144,8 @@
                                 pointRadius: 3,
                                 pointBackgroundColor: 'rgba(75, 192, 192, 1)',
                                 pointHoverRadius: 5,
-                                tension: 0.3 // Efek lengkungan pada garis
+                                tension: 0.3, // Efek lengkungan pada garis
+                                spanGaps: true // Menghindari garis di antara titik yang kosong/null
                             }]
                         },
                         options: {
@@ -169,12 +173,16 @@
                                     title: {
                                         display: true,
                                         text: 'Jumlah Pemeriksaan'
+                                    },
+                                    ticks: {
+                                        stepSize: 1
                                     }
                                 }
                             }
                         }
                     });
                 </script>
+                
 
                 <!-- Modal untuk Detail -->
                 @foreach($pemeriksaans as $pemeriksaan)
@@ -216,15 +224,20 @@
                                 </div>
 
                                 <h6><strong>Citra Telapak Kaki</strong></h6>
-                                @if($pemeriksaan->citraTelapakKaki->path_citra)
+                                @if(isset($pemeriksaan->citraTelapakKaki) && $pemeriksaan->citraTelapakKaki->path_citra)
                                 <img src="{{ asset('storage/' . $pemeriksaan->citraTelapakKaki->path_citra) }}"
                                     alt="Citra Telapak Kaki"
                                     class="img-fluid"
                                     width="300">
-                                @else
+                            @else
                                 <p>Tidak ada gambar.</p>
-                                @endif
+                            @endif
+                            
+                            @if(isset($pemeriksaan->citraTelapakKaki) && isset($pemeriksaan->citraTelapakKaki->clarke_angle))
                                 <p class="m-0 pt-2">Arch: {{ $pemeriksaan->citraTelapakKaki->clarke_angle }}</p>
+                            @else
+                                <p class="m-0 pt-2">Arch: -</p>
+                            @endif                            
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>

@@ -23,7 +23,11 @@ class PeriksaAnakController extends Controller
 
     public function hasil_detail($id)
     {
-        $anak = Anak::with('pemeriksaans')->findOrFail($id);
+        $anak = Anak::with([
+            'pemeriksaans.citraTelapakKaki',
+            'pemeriksaans.petugas'
+        ])->findOrFail($id);
+
         return view('backend.pages.periksa-anak.detail', compact('anak'));
     }
 
