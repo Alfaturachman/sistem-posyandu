@@ -26,4 +26,3 @@ class Anak extends Model
         return $this->hasMany(Pemeriksaan::class, 'id_anak');
     }
 }
-// Compare this snippet from config/database.php:

@@ -3,7 +3,7 @@
  
      <a href="index.html" class="logo d-flex align-items-center me-auto">
        <img src="assets/img/logo.png" alt="">
-       <h1 class="sitename">Posyandu</h1>
+       <h1 class="sitename">E-GROWTH</h1>
      </a>
  
      <nav id="navmenu" class="navmenu">

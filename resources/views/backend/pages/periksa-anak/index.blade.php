@@ -15,7 +15,7 @@
                             Tambah Periksa Anak</i>
                         </a>
                         <div id="alert" class="alert alert-primary" role="alert">
-                            Silahkan untuk periksa data anak dengan mengisi form di bawah ini.
+                            Di bawah ini hasil periksa anak yang telah dilakukan.
                         </div>
                     </div>
                     <div class="table-responsive">
