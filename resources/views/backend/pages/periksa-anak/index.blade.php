@@ -22,8 +22,8 @@
                         <table id="dataTables" class="table table-bordered">
                             <thead>
                                 <tr>
-                                    <th class="text-start">NIK</th>
                                     <th>Nama Anak</th>
+                                    <th class="text-start">NIK</th>
                                     <th>Tanggal Lahir</th>
                                     <th>Jenis Kelamin</th>
                                     <th>Aksi</th>
@@ -32,8 +32,8 @@
                             <tbody>
                                 @foreach($anakList as $anak)
                                 <tr>
-                                    <td class="text-start">{{ $anak->nik }}</td>
                                     <td>{{ $anak->nama_anak }}</td>
+                                    <td class="text-start">{{ $anak->nik }}</td>
                                     <td>{{ \Carbon\Carbon::parse($anak->tanggal_lahir)->translatedFormat('d F Y') }}</td>
                                     <td>{{ $anak->jenis_kelamin }}</td>
                                     <td>

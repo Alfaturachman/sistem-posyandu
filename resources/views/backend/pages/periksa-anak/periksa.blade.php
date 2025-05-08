@@ -339,6 +339,25 @@
         </div>
     </div>
 </div>
+<!-- Modal Success -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="successModalLabel">Sukses Periksa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Periksa anak berhasil ditambahkan.
+            </div>
+            <div class="modal-footer">
+                <a href="{{ route('hasil') }}" class="btn btn-secondary">Lihat Hasil</a>
+                <a href="{{ route('periksa') }}" class="btn btn-primary">Kembali Periksa</a>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 <script>
@@ -363,43 +382,12 @@
     });
 </script>
 
-<!-- Modal Success -->
-<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="successModalLabel">Sukses Periksa</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Periksa anak berhasil ditambahkan.
-            </div>
-            <div class="modal-footer">
-                <a href="{{ route('hasil') }}" class="btn btn-secondary">Lihat Hasil</a>
-                <a href="{{ route('periksa') }}" class="btn btn-primary">Kembali Periksa</a>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Cek Session untuk Menampilkan Modal -->
-@if(session('success'))
+@if(session()->pull('success'))
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         var successModal = new bootstrap.Modal(document.getElementById('successModal'));
         successModal.show();
-        
-        // Hapus session setelah modal ditutup
-        document.getElementById('successModal').addEventListener('hidden.bs.modal', function () {
-            // Buat request untuk menghapus session
-            fetch("{{ route('clear.success.session') }}", {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                }
-            });
-        });
     });
 </script>
 @endif

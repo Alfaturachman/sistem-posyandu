@@ -10,6 +10,14 @@ use App\Http\Controllers\PortalController;
 use Illuminate\Support\Facades\Route;
 
 // =======================
+// Generate Storage Links
+// =======================
+Route::get('/generate', function () {
+    \Illuminate\Support\Facades\Artisan::call('storage:link');
+    return 'Storage links generated successfully.';
+});
+
+// =======================
 // Frontend Routes (Portal)
 // =======================
 Route::controller(PortalController::class)->group(function () {
@@ -52,6 +60,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/periksa', 'periksa')->name('periksa');
         Route::post('/periksa/store', 'store')->name('periksa.store');
     });
+
+    // Delete Pemeriksaan
+    Route::delete('/pemeriksaan/{id}', [PeriksaAnakController::class, 'destroy'])
+    ->name('pemeriksaan.destroy');
 
     // Image Processing
     Route::post('/process-image', [ImageCitraController::class, 'processImage'])->name('process.image');
