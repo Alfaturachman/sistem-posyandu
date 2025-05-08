@@ -71,13 +71,269 @@
 
                         <div class="form-group mb-2">
                             <label for="citra_telapak_kaki" class="form-label">Citra Telapak Kaki</label>
-                            <input type="file" class="form-control" id="citra_telapak_kaki" name="citra_telapak_kaki" accept="image/*">
+                            <div class="input-group">
+                                <input type="file" class="form-control" id="citra_telapak_kaki" name="citra_telapak_kaki" accept="image/*" style="display: none;" onchange="updateFileInfo()">
+                                <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('citra_telapak_kaki').click()">
+                                    <i class="fas fa-upload"></i> Unggah File
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#cameraModal">
+                                    <i class="fas fa-camera"></i> Ambil Foto
+                                </button>
+                            </div>
+                            <small id="fileInfo" class="text-muted">Belum ada file yang dipilih</small>
+                            <div id="fileNameDisplay" class="mt-1" style="display: none;">
+                                <span class="badge bg-info">
+                                    <i class="fas fa-file-image me-1"></i>
+                                    <span id="selectedFileName"></span>
+                                    <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.7rem;" onclick="clearFileSelection()"></button>
+                                </span>
+                            </div>
+                            <!-- Image preview container -->
+                            <div id="imagePreviewContainer" class="mt-2 text-center" style="display: none;">
+                                <img id="imagePreview" class="img-thumbnail" style="max-width: 100%; max-height: 200px;">
+                            </div>
                         </div>
 
                         <div class="d-flex justify-content-end mt-3">
                             <button type="submit" class="btn btn-primary">Simpan Periksa</button>
                         </div>
                     </form>
+
+                    <!-- Camera Modal -->
+                    <div class="modal fade" id="cameraModal" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Ambil Foto Telapak Kaki</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body text-center">
+                                    <div id="cameraView">
+                                        <video id="video" width="100%" height="auto" autoplay playsinline></video>
+                                        <div class="mt-2 text-muted">Arahkan kamera ke telapak kaki dan pastikan gambar jelas</div>
+                                    </div>
+                                    <div id="previewView" style="display: none;">
+                                        <img id="photoPreview" style="max-width: 100%;" />
+                                        <div class="mt-2 text-muted">Pratinjau foto</div>
+                                    </div>
+                                    <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+                                    <input type="hidden" id="photoData" name="photo_data">
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                                    <button type="button" class="btn btn-warning" id="retakePhotoBtn" style="display: none;" onclick="retakePhoto()">
+                                        <i class="fas fa-redo me-1"></i> Ambil Ulang
+                                    </button>
+                                    <button type="button" class="btn btn-primary" id="takePhotoBtn" onclick="takePhoto()">
+                                        <i class="fas fa-camera me-1"></i> Ambil Foto
+                                    </button>
+                                    <button type="button" class="btn btn-success" id="usePhotoBtn" style="display: none;" onclick="usePhoto()">
+                                        <i class="fas fa-check me-1"></i> Gunakan Foto Ini
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <script>
+                        let stream = null;
+
+                        // Start camera when modal is shown
+                        document.getElementById('cameraModal').addEventListener('shown.bs.modal', function() {
+                            const video = document.getElementById('video');
+
+                            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                                navigator.mediaDevices.getUserMedia({
+                                        video: {
+                                            facingMode: 'environment', // Gunakan kamera belakang jika tersedia
+                                            width: {
+                                                ideal: 1280
+                                            },
+                                            height: {
+                                                ideal: 720
+                                            }
+                                        }
+                                    })
+                                    .then(function(mediaStream) {
+                                        stream = mediaStream;
+                                        video.srcObject = mediaStream;
+                                        video.play();
+                                    })
+                                    .catch(function(error) {
+                                        console.error("Error accessing camera: ", error);
+                                        alert("Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.");
+                                    });
+                            } else {
+                                alert("Browser tidak mendukung akses kamera.");
+                            }
+                        });
+
+                        // Stop camera when modal is hidden
+                        document.getElementById('cameraModal').addEventListener('hidden.bs.modal', function() {
+                            stopCamera();
+                            resetCameraUI();
+                        });
+
+                        function stopCamera() {
+                            if (stream) {
+                                stream.getTracks().forEach(track => {
+                                    track.stop();
+                                });
+                                stream = null;
+                            }
+                        }
+
+                        function resetCameraUI() {
+                            const video = document.getElementById('video');
+                            const photoPreview = document.getElementById('photoPreview');
+                            const takePhotoBtn = document.getElementById('takePhotoBtn');
+                            const usePhotoBtn = document.getElementById('usePhotoBtn');
+                            const retakePhotoBtn = document.getElementById('retakePhotoBtn');
+                            const cameraView = document.getElementById('cameraView');
+                            const previewView = document.getElementById('previewView');
+
+                            // Show camera view
+                            cameraView.style.display = 'block';
+                            previewView.style.display = 'none';
+                            video.style.display = 'block';
+
+                            // Reset buttons
+                            takePhotoBtn.style.display = 'block';
+                            usePhotoBtn.style.display = 'none';
+                            retakePhotoBtn.style.display = 'none';
+                        }
+
+                        function retakePhoto() {
+                            // Start camera again
+                            const video = document.getElementById('video');
+                            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                                navigator.mediaDevices.getUserMedia({
+                                        video: {
+                                            facingMode: 'environment',
+                                            width: {
+                                                ideal: 1280
+                                            },
+                                            height: {
+                                                ideal: 720
+                                            }
+                                        }
+                                    })
+                                    .then(function(mediaStream) {
+                                        // Stop previous stream if exists
+                                        if (stream) {
+                                            stopCamera();
+                                        }
+
+                                        stream = mediaStream;
+                                        video.srcObject = mediaStream;
+                                        video.play();
+
+                                        // Reset UI
+                                        resetCameraUI();
+                                    })
+                                    .catch(function(error) {
+                                        console.error("Error accessing camera: ", error);
+                                        alert("Tidak dapat mengakses kamera kembali.");
+                                    });
+                            }
+                        }
+
+                        function takePhoto() {
+                            const video = document.getElementById('video');
+                            const canvas = document.getElementById('canvas');
+                            const photoPreview = document.getElementById('photoPreview');
+                            const takePhotoBtn = document.getElementById('takePhotoBtn');
+                            const usePhotoBtn = document.getElementById('usePhotoBtn');
+                            const retakePhotoBtn = document.getElementById('retakePhotoBtn');
+                            const cameraView = document.getElementById('cameraView');
+                            const previewView = document.getElementById('previewView');
+
+                            // Pause video to take still photo
+                            video.pause();
+
+                            canvas.width = video.videoWidth;
+                            canvas.height = video.videoHeight;
+                            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                            const imageDataUrl = canvas.toDataURL('image/jpeg');
+                            photoPreview.src = imageDataUrl;
+
+                            // Switch to preview view
+                            cameraView.style.display = 'none';
+                            previewView.style.display = 'block';
+
+                            // Update buttons
+                            takePhotoBtn.style.display = 'none';
+                            usePhotoBtn.style.display = 'block';
+                            retakePhotoBtn.style.display = 'block';
+                        }
+
+                        function updateFileInfo() {
+                            const fileInput = document.getElementById('citra_telapak_kaki');
+                            const fileInfo = document.getElementById('fileInfo');
+                            const fileNameDisplay = document.getElementById('fileNameDisplay');
+                            const selectedFileName = document.getElementById('selectedFileName');
+                            const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+                            const imagePreview = document.getElementById('imagePreview');
+
+                            if (fileInput.files && fileInput.files.length > 0) {
+                                fileInfo.textContent = "File dipilih:";
+                                selectedFileName.textContent = fileInput.files[0].name;
+                                fileNameDisplay.style.display = 'block';
+
+                                // Show image preview
+                                const reader = new FileReader();
+                                reader.onload = function(e) {
+                                    imagePreview.src = e.target.result;
+                                    imagePreviewContainer.style.display = 'block';
+                                }
+                                reader.readAsDataURL(fileInput.files[0]);
+                            } else {
+                                fileInfo.textContent = "Belum ada file yang dipilih";
+                                fileNameDisplay.style.display = 'none';
+                                imagePreviewContainer.style.display = 'none';
+                            }
+                        }
+
+                        function clearFileSelection() {
+                            const fileInput = document.getElementById('citra_telapak_kaki');
+                            fileInput.value = '';
+                            updateFileInfo();
+                        }
+
+                        function usePhoto() {
+                            const canvas = document.getElementById('canvas');
+                            const fileInput = document.getElementById('citra_telapak_kaki');
+                            const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+                            const imagePreview = document.getElementById('imagePreview');
+
+                            canvas.toBlob(function(blob) {
+                                const file = new File([blob], 'telapak_kaki_' + new Date().toISOString().slice(0, 10) + '.jpg', {
+                                    type: 'image/jpeg'
+                                });
+
+                                const dataTransfer = new DataTransfer();
+                                dataTransfer.items.add(file);
+                                fileInput.files = dataTransfer.files;
+
+                                // Show the captured image preview
+                                const reader = new FileReader();
+                                reader.onload = function(e) {
+                                    imagePreview.src = e.target.result;
+                                    imagePreviewContainer.style.display = 'block';
+                                }
+                                reader.readAsDataURL(file);
+
+                                updateFileInfo();
+
+                                const modal = bootstrap.Modal.getInstance(document.getElementById('cameraModal'));
+                                modal.hide();
+
+                                // Stop camera after using photo
+                                stopCamera();
+                            }, 'image/jpeg', 0.9);
+                        }
+                    </script>
                 </div>
             </div>
         </div>
@@ -132,10 +388,21 @@
     document.addEventListener("DOMContentLoaded", function() {
         var successModal = new bootstrap.Modal(document.getElementById('successModal'));
         successModal.show();
+        
+        // Hapus session setelah modal ditutup
+        document.getElementById('successModal').addEventListener('hidden.bs.modal', function () {
+            // Buat request untuk menghapus session
+            fetch("{{ route('clear.success.session') }}", {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            });
+        });
     });
 </script>
 @endif
-
 
 <!-- Script Preview Gambar -->
 <script>

@@ -74,9 +74,12 @@ class PeriksaAnakController extends Controller
         $data = $request->only(['id_anak', 'berat_badan', 'tinggi_badan', 'lingkar_lengan', 'lingkar_kepala']);
         $pemeriksaan = Pemeriksaan::create($data);
 
-        // Jika ada file citra_telapak_kaki, proses dengan function terpisah
+        // Handle image upload (either from file or camera)
         if ($request->hasFile('citra_telapak_kaki')) {
-            $hasilProses = $this->processFootImage($request->file('citra_telapak_kaki'));
+            $file = $request->file('citra_telapak_kaki');
+
+            // Process the image
+            $hasilProses = $this->processFootImage($file);
 
             if (isset($hasilProses['error'])) {
                 return redirect()->back()->with('error', $hasilProses['error']);

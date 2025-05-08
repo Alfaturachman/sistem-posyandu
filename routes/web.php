@@ -56,3 +56,11 @@ Route::middleware(['auth'])->group(function () {
     // Image Processing
     Route::post('/process-image', [ImageCitraController::class, 'processImage'])->name('process.image');
 });
+
+// =======================
+// Clear Session Routes
+// =======================
+Route::get('/clear-success-session', function() {
+    session()->forget('success');
+    return response()->json(['success' => true]);
+})->name('clear.success.session');
