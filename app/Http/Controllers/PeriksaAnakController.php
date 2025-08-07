@@ -7,10 +7,11 @@ use App\Models\Pemeriksaan;
 use Illuminate\Http\Request;
 use App\Jobs\ProcessImageJob;
 use App\Models\CitraTelapakKaki;
-use Intervention\Image\ImageManager;
-use Intervention\Image\Drivers\Gd\Driver;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Intervention\Image\ImageManager;
+use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Drivers\Gd\Driver;
 
 class PeriksaAnakController extends Controller
 {
@@ -56,8 +57,26 @@ class PeriksaAnakController extends Controller
     public function periksa()
     {
         $anakList = Anak::all();
-        return view('backend.pages.periksa-anak.periksa', compact('anakList'));
+
+        // Ambil data weight dari device_id tertentu
+        $latestWeight = DB::table('api_weight')
+            ->where('device_id', 'isp32_scale_017')
+            ->orderByDesc('timestamp')
+            ->value('weight');
+
+        return view('backend.pages.periksa-anak.periksa', compact('anakList', 'latestWeight'));
     }
+
+    public function getDatabaseWeight()
+    {
+        $latestWeight = DB::table('api_weight')
+            ->where('device_id', 'isp32_scale_017')
+            ->orderByDesc('timestamp')
+            ->value('weight');
+
+        return response()->json(['weight' => $latestWeight]);
+    }
+
 
     public function store(Request $request)
     {

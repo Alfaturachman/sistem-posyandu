@@ -50,22 +50,24 @@
                         <div class="row">
                             <div class="col-lg-6 mb-3">
                                 <label for="berat_badan" class="form-label">Berat Badan</label>
-                                <input type="number" class="form-control" id="berat_badan" name="berat_badan" placeholder="Masukkan Berat Badan" required>
+                                <input type="number" step="0.01" class="form-control" id="berat_badan" name="berat_badan"
+                                    placeholder="Masukkan Berat Badan"
+                                    value="{{ old('berat_badan', $latestWeight) }}" required>
                             </div>
                             <div class="col-lg-6 mb-3">
                                 <label for="tinggi_badan" class="form-label">Tinggi Badan</label>
-                                <input type="number" class="form-control" id="tinggi_badan" name="tinggi_badan" placeholder="Masukkan Tinggi Badan" required>
+                                <input type="number" step="0.01" class="form-control" id="tinggi_badan" name="tinggi_badan" placeholder="Masukkan Tinggi Badan" required>
                             </div>
                         </div>
 
                         <div class="row">
                             <div class="col-lg-6 mb-3">
                                 <label for="lingkar_lengan" class="form-label">Lingkar Lengan</label>
-                                <input type="number" class="form-control" id="lingkar_lengan" name="lingkar_lengan" placeholder="Masukkan Lingkar Lengan" required>
+                                <input type="number" step="0.01" class="form-control" id="lingkar_lengan" name="lingkar_lengan" placeholder="Masukkan Lingkar Lengan" required>
                             </div>
                             <div class="col-lg-6 mb-3">
                                 <label for="lingkar_kepala" class="form-label">Lingkar Kepala</label>
-                                <input type="number" class="form-control" id="lingkar_kepala" name="lingkar_kepala" placeholder="Masukkan Lingkar Kepala" required>
+                                <input type="number" step="0.01" class="form-control" id="lingkar_kepala" name="lingkar_kepala" placeholder="Masukkan Lingkar Kepala" required>
                             </div>
                         </div>
 
@@ -139,32 +141,37 @@
                         let stream = null;
 
                         // Start camera when modal is shown
-                        document.getElementById('cameraModal').addEventListener('shown.bs.modal', function() {
+                        document.getElementById('cameraModal').addEventListener('shown.bs.modal', async function() {
                             const video = document.getElementById('video');
-
-                            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                                navigator.mediaDevices.getUserMedia({
-                                        video: {
-                                            facingMode: 'environment', // Gunakan kamera belakang jika tersedia
-                                            width: {
-                                                ideal: 1280
-                                            },
-                                            height: {
-                                                ideal: 720
-                                            }
-                                        }
-                                    })
-                                    .then(function(mediaStream) {
-                                        stream = mediaStream;
-                                        video.srcObject = mediaStream;
-                                        video.play();
-                                    })
-                                    .catch(function(error) {
-                                        console.error("Error accessing camera: ", error);
-                                        alert("Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.");
-                                    });
-                            } else {
-                                alert("Browser tidak mendukung akses kamera.");
+                            
+                            try {
+                                // Dapatkan daftar perangkat kamera terlebih dahulu
+                                const devices = await navigator.mediaDevices.enumerateDevices();
+                                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                                
+                                // Cari kamera eksternal (biasany labelnya tidak kosong)
+                                const externalCamera = videoDevices.find(device => device.label && 
+                                    !device.label.toLowerCase().includes('built-in') && 
+                                    !device.label.toLowerCase().includes('internal'));
+                                
+                                const constraints = {
+                                    video: {
+                                        width: { ideal: 1280 },
+                                        height: { ideal: 720 },
+                                        deviceId: externalCamera ? { exact: externalCamera.deviceId } : undefined
+                                    }
+                                };
+                                
+                                // Jika tidak menemukan kamera eksternal, gunakan kamera apa saja
+                                const stream = await navigator.mediaDevices.getUserMedia(
+                                    externalCamera ? constraints : { video: true }
+                                );
+                                
+                                video.srcObject = stream;
+                                video.play();
+                            } catch (error) {
+                                console.error("Camera error:", error);
+                                alert("Gagal mengakses kamera. Pastikan kamera terhubung dan izin diberikan.");
                             }
                         });
 
@@ -403,4 +410,20 @@
         };
         reader.readAsDataURL(event.target.files[0]);
     }
+</script>
+
+<script>
+    function fetchLatestWeight() {
+        fetch('/get-database-weight')
+            .then(response => response.json())
+            .then(data => {
+                if (data.weight !== null) {
+                    document.getElementById('berat_badan').value = data.weight;
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    // Ambil data setiap 3 detik
+    setInterval(fetchLatestWeight, 3000);
 </script>

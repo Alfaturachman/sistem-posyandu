@@ -1,13 +1,14 @@
 <?php
 
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ApiController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\DaftarAnakController;
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\PortalController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DaftarAnakController;
 use App\Http\Controllers\ImageCitraController;
 use App\Http\Controllers\PeriksaAnakController;
-use App\Http\Controllers\PortalController;
-use Illuminate\Support\Facades\Route;
 
 // =======================
 // Generate Storage Links
@@ -63,16 +64,18 @@ Route::middleware(['auth'])->group(function () {
 
     // Delete Pemeriksaan
     Route::delete('/pemeriksaan/{id}', [PeriksaAnakController::class, 'destroy'])
-    ->name('pemeriksaan.destroy');
+        ->name('pemeriksaan.destroy');
 
     // Image Processing
     Route::post('/process-image', [ImageCitraController::class, 'processImage'])->name('process.image');
 });
 
+Route::get('/get-database-weight', [PeriksaAnakController::class, 'getDatabaseWeight']);
+
 // =======================
 // Clear Session Routes
 // =======================
-Route::get('/clear-success-session', function() {
+Route::get('/clear-success-session', function () {
     session()->forget('success');
     return response()->json(['success' => true]);
 })->name('clear.success.session');

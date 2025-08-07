@@ -72,29 +72,29 @@
                                     <td>{{ $periksa->tinggi_badan }}</td>
                                     <td>{{ $periksa->lingkar_lengan }}</td>
                                     <td>{{ $periksa->lingkar_kepala }}</td>
+<td>
+    @if(optional($periksa->citraTelapakKaki)->path_citra)
+    <img src="{{ asset('storage/' . $periksa->citraTelapakKaki->path_citra) }}"
+        alt="Citra Telapak Kaki"
+        class="img-fluid"
+        width="300">
+    @else
+    <p>Tidak ada gambar</p>
+    @endif
+</td>
                                     <td>
-                                        @if(optional($periksa->citraTelapakKaki)->path_citra)
-                                        <img src="{{ asset('storage/' . $periksa->citraTelapakKaki->path_citra) }}"
-                                            alt="Citra Telapak Kaki"
-                                            class="img-fluid"
-                                            width="300">
-                                        @else
-                                        <p>Tidak ada gambar</p>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        <button type="button" 
-                                                class="btn btn-danger btn-sm delete-btn"
-                                                data-bs-toggle="modal" 
-                                                data-bs-target="#confirmDeleteModal"
-                                                data-id="{{ $periksa->id }}">
-                                                <i class="ti ti-trash"></i> Hapus
+                                        <button type="button"
+                                            class="btn btn-danger btn-sm delete-btn"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#confirmDeleteModal"
+                                            data-id="{{ $periksa->id }}">
+                                            <i class="ti ti-trash"></i> Hapus
                                         </button>
-                                        
-                                        <form id="deleteForm-{{ $periksa->id }}" 
-                                              action="{{ route('pemeriksaan.destroy', $periksa->id) }}" 
-                                              method="POST" 
-                                              class="d-none">
+
+                                        <form id="deleteForm-{{ $periksa->id }}"
+                                            action="{{ route('pemeriksaan.destroy', $periksa->id) }}"
+                                            method="POST"
+                                            class="d-none">
                                             @csrf
                                             @method('DELETE')
                                         </form>
@@ -124,7 +124,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">Batal</button>
-                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Hapus</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Hapus</button>
             </div>
         </div>
     </div>
@@ -151,43 +151,43 @@
         const confirmModal = new bootstrap.Modal('#confirmDeleteModal');
         const successModal = new bootstrap.Modal('#successModal');
         let deleteFormId = null;
-        
+
         // Tangkap klik tombol delete
         document.querySelectorAll('.delete-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 deleteFormId = this.getAttribute('data-id');
             });
         });
-        
+
         // Konfirmasi hapus
         document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
             if (deleteFormId) {
                 fetch(document.getElementById('deleteForm-' + deleteFormId).action, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        _method: 'DELETE'
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            _method: 'DELETE'
+                        })
                     })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        confirmModal.hide();
-                        successModal.show();
-                        // Optional: Refresh data atau update UI
-                        setTimeout(() => window.location.reload(), 1500);
-                    }
-                });
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            confirmModal.hide();
+                            successModal.show();
+                            // Optional: Refresh data atau update UI
+                            setTimeout(() => window.location.reload(), 1500);
+                        }
+                    });
             }
         });
 
         // Tampilkan modal success jika ada session
         @if(session('success'))
-            successModal.show();
+        successModal.show();
         @endif
     });
 </script>
