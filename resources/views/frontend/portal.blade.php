@@ -3,37 +3,36 @@
 @section('title', 'Portal Anak')
 
 @section('content')
+
 <!-- Hero Section -->
-<section id="hero" class="hero section">
-    <div class="hero-bg">
-        <img src="{{ asset('frontend/assets/img/45667547.webp') }}" alt="">
-    </div>
-    <div class="container text-center">
-        <div class="d-flex flex-column justify-content-center align-items-center">
-            <img src="{{ asset('frontend/assets/img/logo_posyandu.png') }}" class="img-fluid hero-img mb-3" alt="" data-aos="zoom-out" data-aos-delay="300">
-            <h1 data-aos="fade-up">Selamat Datang di <span>Posyandu</span></h1>
-            <p data-aos="fade-up" data-aos-delay="100">Silahkan untuk melihat hasil pemeriksaan berdasarkan NIK buah hati Anda<br></p>
-            <div class="d-flex" data-aos="fade-up" data-aos-delay="200">
-                <a href="#portal" class="btn-get-started">Mulai Sekarang</a>
+<section class="hero">
+    <div class="container">
+        <div class="hero-content fade-in-up">
+            <img src="{{ asset('frontend/assets/img/logo_posyandu.jpg') }}" class="img-fluid hero-img mb-3" alt="" data-aos="zoom-out" data-aos-delay="300">
+            <h1>Selamat Datang di Posyandu</h1>
+            <p>Silahkan untuk melihat hasil pemantauan deteksi dan intervensi dini tumbuh kembang (DIDTK) berdasarkan NIK buah hati Anda ✨</p>
+            <a href="#portal" class="btn-get-started">
+                <i class="fas fa-rocket me-2"></i>Mulai Sekarang
+            </a>
+            <div class="mt-4">
+                <img src="{{ asset('frontend/assets/img/warik_scholarship_bg.png') }}" class="img-fluid hero-img" alt="" data-aos="zoom-out" data-aos-delay="300">
             </div>
-            <img src="{{ asset('frontend/assets/img/4978784.webp') }}" class="img-fluid hero-img" alt="" data-aos="zoom-out" data-aos-delay="300">
         </div>
     </div>
 </section>
 
-<!-- Services Section -->
+<!-- Portal Section -->
 <section id="portal" class="services section">
-    <!-- Section Title -->
     <div class="container section-title" data-aos="fade-up">
-        <h2>Portal Anak</h2>
+        <h2 class="text-white">Portal Anak</h2>
         <p>Silahkan untuk melihat hasil pemeriksaan dan mencari berdasarkan NIK buah hati Anda</p>
-    </div><!-- End Section Title -->
+    </div>
 
     <div class="container">
         <div class="row g-5">
             <div class="col" data-aos="fade-up" data-aos-delay="100">
                 <div class="card">
-                    <div class="card-header" style="color: white !important; background-color: var(--accent-color) !important;">
+                    <div class="card-header">
                         <h5 class="pt-2" style="color: white !important;">Pencarian Data</h5>
                     </div>
                     <div class="card-body">

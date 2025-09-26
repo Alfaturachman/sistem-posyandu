@@ -9,13 +9,13 @@ use Illuminate\Support\Facades\Session;
 
 class AuthController extends Controller
 {
-    // Menampilkan halaman login
+    // Halaman login
     public function showLogin()
     {
         return view('backend.pages.auth.login');
     }
 
-    // Proses login
+    // Login
     public function login(Request $request)
     {
         $request->validate([
@@ -37,6 +37,6 @@ class AuthController extends Controller
     {
         Auth::logout();
         Session::flush();
-        return redirect()->route('login')->with('success', 'Anda telah logout.');
+        return redirect('/')->with('success', 'Anda telah logout.');
     }
 }

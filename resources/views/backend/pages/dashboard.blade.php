@@ -5,7 +5,7 @@
 @section('content')
 <div class="container-fluid">
     <div class="row">
-        <div class="col-lg-4 col-md-6">
+        <div class="col-lg-6 col-md-6">
             <div class="card">
                 <div class="card-body">
                     <div class="row alig n-items-start">
@@ -25,13 +25,13 @@
                 </div>
             </div>
         </div>
-        <div class="col-lg-4 col-md-6">
+                <div class="col-lg-6 col-md-6">
             <div class="card">
                 <div class="card-body">
                     <div class="row alig n-items-start">
                         <div class="col-8">
-                            <h5 class="card-title mb-9 fw-semibold">Total Periksa</h5>
-                            <h4 class="fw-semibold">{{ $totalPemeriksaan }}</h4>
+                            <h5 class="card-title mb-9 fw-semibold">Periksa Hari Ini</h5>
+                            <h4 class="fw-semibold">{{ $totalPemeriksaanHariIni }}</h4>
                         </div>
                         <div class="col-4">
                             <div class="d-flex justify-content-end">
@@ -45,19 +45,38 @@
                 </div>
             </div>
         </div>
-        <div class="col-lg-4 col-md-6">
+        <div class="col-lg-6 col-md-6">
             <div class="card">
                 <div class="card-body">
                     <div class="row alig n-items-start">
                         <div class="col-8">
-                            <h5 class="card-title mb-9 fw-semibold">Periksa Hari Ini</h5>
-                            <h4 class="fw-semibold">{{ $totalPemeriksaanHariIni }}</h4>
+                            <h5 class="card-title mb-9 fw-semibold">Total Sudah Periksa</h5>
+                            <h4 class="fw-semibold">{{ $totalPemeriksaan }}</h4>
                         </div>
                         <div class="col-4">
                             <div class="d-flex justify-content-end">
                                 <div
                                     class="text-white bg-secondary rounded-circle p-6 d-flex align-items-center justify-content-center">
-                                    <i class="ti ti-heartbeat fs-6"></i>
+                                    <i class="ti ti-clipboard-heart fs-6"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 col-md-6">
+            <div class="card cursor-pointer" data-bs-toggle="modal" data-bs-target="#modalBelumPeriksa" style="cursor: pointer;">
+                <div class="card-body">
+                    <div class="row align-items-start">
+                        <div class="col-8">
+                            <h5 class="card-title mb-9 fw-semibold">Total Belum Diperiksa</h5>
+                            <h4 class="fw-semibold">{{ $totalBelumPeriksa }}</h4>
+                        </div>
+                        <div class="col-4">
+                            <div class="d-flex justify-content-end">
+                                <div class="text-white bg-danger rounded-circle p-6 d-flex align-items-center justify-content-center">
+                                    <i class="ti ti-user-exclamation fs-6"></i>
                                 </div>
                             </div>
                         </div>
@@ -86,12 +105,12 @@
                     <div id="chart"></div>
                     <script>
                         const pemeriksaanData = @json($dataChart);
-                    </script>                    
+                    </script>
                 </div>
             </div>
         </div>
     </div>
-    <div class="row">
+    {{-- <div class="row">
         <div class="col-lg-12 d-flex align-items-stretch">
             <div class="card w-100">
                 <div class="card-body p-4">
@@ -154,6 +173,39 @@
                 </div>
             </div>
         </div>
+    </div> --}}
+</div>
+<div class="modal fade" id="modalBelumPeriksa" tabindex="-1" aria-labelledby="modalBelumPeriksaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalBelumPeriksaLabel">Daftar Anak Belum Diperiksa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                @if($anakBelumPeriksa->isEmpty())
+                <p class="text-center">Semua anak sudah diperiksa ✅</p>
+                @else
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>NIK</th>
+                            <th>Nama Anak</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($anakBelumPeriksa as $anak)
+                        <tr>
+                            <td>{{ $anak->nik }}</td>
+                            <td>{{ $anak->nama_anak }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                @endif
+            </div>
+        </div>
     </div>
 </div>
+
 @endsection

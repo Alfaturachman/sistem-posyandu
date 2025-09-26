@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{{ asset('backend/src/assets/css/styles.min.css') }}" />
 </head>
 
-<body>
+<body style="background: linear-gradient(135deg, #5dbcd2 0%, #388da8 100%) !important;">
     <!-- Body Wrapper -->
     <div class="page-wrapper" id="main-wrapper" data-layout="vertical" data-navbarbg="skin6" data-sidebartype="full" data-sidebar-position="fixed" data-header-position="fixed">
         <div class="position-relative overflow-hidden radial-gradient min-vh-100 d-flex align-items-center justify-content-center">

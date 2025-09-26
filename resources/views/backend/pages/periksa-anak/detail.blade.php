@@ -72,16 +72,19 @@
                                     <td>{{ $periksa->tinggi_badan }}</td>
                                     <td>{{ $periksa->lingkar_lengan }}</td>
                                     <td>{{ $periksa->lingkar_kepala }}</td>
-<td>
-    @if(optional($periksa->citraTelapakKaki)->path_citra)
-    <img src="{{ asset('storage/' . $periksa->citraTelapakKaki->path_citra) }}"
-        alt="Citra Telapak Kaki"
-        class="img-fluid"
-        width="300">
-    @else
-    <p>Tidak ada gambar</p>
-    @endif
-</td>
+                                    <td>
+                                        @if(optional($periksa->citraTelapakKaki)->path_citra)
+                                        <button type="button"
+                                            class="btn btn-info btn-sm"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#citraModal-{{ $periksa->id }}">
+                                            <i class="ti ti-eye"></i> Lihat Detail
+                                        </button>
+                                        @else
+                                        <span class="text-muted">Tidak ada gambar</span>
+                                        @endif
+                                    </td>
+
                                     <td>
                                         <button type="button"
                                             class="btn btn-danger btn-sm delete-btn"
@@ -100,6 +103,45 @@
                                         </form>
                                     </td>
                                 </tr>
+
+                                {{-- Modal untuk detail citra --}}
+                                @if(optional($periksa->citraTelapakKaki)->path_citra)
+                                @php
+                                $segmentedPath = str_replace('processed_', 'segmented_', $periksa->citraTelapakKaki->path_citra);
+                                @endphp
+                                <div class="modal fade" id="citraModal-{{ $periksa->id }}" tabindex="-1" aria-labelledby="citraModalLabel-{{ $periksa->id }}" aria-hidden="true">
+                                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="citraModalLabel-{{ $periksa->id }}">Detail Citra Telapak Kaki</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                                            </div>
+                                            <div class="modal-body text-center">
+                                                <p><strong>Processed:</strong></p>
+                                                <img src="{{ asset('media/storage/' . $periksa->citraTelapakKaki->path_citra) }}"
+                                                    alt="Citra Telapak Kaki"
+                                                    class="img-fluid mb-3"
+                                                    style="max-height: 300px;">
+
+                                                @if(file_exists(public_path('media/storage/' . $segmentedPath)))
+                                                <p><strong>Segmented:</strong></p>
+                                                <img src="{{ asset('media/storage/' . $segmentedPath) }}"
+                                                    alt="Citra Telapak Kaki Tersegmentasi"
+                                                    class="img-fluid mb-3"
+                                                    style="max-height: 300px;">
+                                                @endif
+
+                                                <ul class="list-unstyled">
+                                                    @if($periksa->citraTelapakKaki->clarke_angle)
+                                                    <li><strong>Clarke Angle:</strong> {{ $periksa->citraTelapakKaki->clarke_angle }}°</li>
+                                                    @endif
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                @endif
+
                                 @endforeach
                             </tbody>
                         </table>

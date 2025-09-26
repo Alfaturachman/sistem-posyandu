@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\PDFController;
 use App\Http\Controllers\PortalController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DaftarAnakController;
@@ -71,6 +72,10 @@ Route::middleware(['auth'])->group(function () {
 });
 
 Route::get('/get-database-weight', [PeriksaAnakController::class, 'getDatabaseWeight']);
+Route::get('/get-database-height', [PeriksaAnakController::class, 'getDatabaseHeight']);
+
+Route::post('/download-pdf', [PDFController::class, 'downloadPdf'])->name('download.pdf');
+Route::get('/test-pdf', [PDFController::class, 'testPdf']);
 
 // =======================
 // Clear Session Routes

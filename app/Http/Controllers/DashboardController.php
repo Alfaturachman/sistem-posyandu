@@ -23,24 +23,30 @@ class DashboardController extends Controller
             ->orderBy('bulan')
             ->pluck('total', 'bulan');
 
-        // Siapkan array dengan 12 bulan
         $dataChart = [];
         for ($i = 1; $i <= 12; $i++) {
             $dataChart[] = $pemeriksaanPerBulan[$i] ?? 0;
         }
 
-        // Ambil 5 pemeriksaan terakhir dengan relasi anak
+        // Riwayat pemeriksaan terakhir
         $riwayatPemeriksaan = Pemeriksaan::with(['anak', 'petugas'])
             ->orderBy('tanggal_periksa', 'desc')
             ->take(5)
             ->get();
+
+        // Cari anak yang belum pernah diperiksa
+        $anakSudahPeriksa = Pemeriksaan::pluck('id_anak')->unique();
+        $anakBelumPeriksa = Anak::whereNotIn('id', $anakSudahPeriksa)->get();
+        $totalBelumPeriksa = $anakBelumPeriksa->count();
 
         return view('backend.pages.dashboard', compact(
             'totalAnak',
             'totalPemeriksaan',
             'totalPemeriksaanHariIni',
             'dataChart',
-            'riwayatPemeriksaan'
+            'riwayatPemeriksaan',
+            'totalBelumPeriksa',
+            'anakBelumPeriksa'
         ));
     }
 }

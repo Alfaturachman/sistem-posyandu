@@ -42,21 +42,38 @@
                             <select id="id_anak" name="id_anak" class="form-control" required>
                                 <option value="">- Pilih NIK Anak -</option>
                                 @foreach($anakList as $anak)
-                                <option value="{{ $anak->id }}">{{ $anak->nik }} - {{ $anak->nama_anak }}</option>
+                                <option value="{{ $anak->id }}" data-tanggal-lahir="{{ $anak->tanggal_lahir }}">
+                                    {{ $anak->nik }} - {{ $anak->nama_anak }}
+                                </option>
                                 @endforeach
                             </select>
+
                         </div>
 
                         <div class="row">
                             <div class="col-lg-6 mb-3">
                                 <label for="berat_badan" class="form-label">Berat Badan</label>
-                                <input type="number" step="0.01" class="form-control" id="berat_badan" name="berat_badan"
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    class="form-control"
+                                    id="berat_badan"
+                                    name="berat_badan"
                                     placeholder="Masukkan Berat Badan"
-                                    value="{{ old('berat_badan', $latestWeight) }}" required>
+                                    value="" {{-- awal kosong --}}
+                                    required>
                             </div>
                             <div class="col-lg-6 mb-3">
                                 <label for="tinggi_badan" class="form-label">Tinggi Badan</label>
-                                <input type="number" step="0.01" class="form-control" id="tinggi_badan" name="tinggi_badan" placeholder="Masukkan Tinggi Badan" required>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    class="form-control"
+                                    id="tinggi_badan"
+                                    name="tinggi_badan"
+                                    placeholder="Masukkan Tinggi Badan"
+                                    value="" {{-- awal kosong --}}
+                                    required>
                             </div>
                         </div>
 
@@ -70,6 +87,41 @@
                                 <input type="number" step="0.01" class="form-control" id="lingkar_kepala" name="lingkar_kepala" placeholder="Masukkan Lingkar Kepala" required>
                             </div>
                         </div>
+
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-secondary btn-small" id="isiDariDB">
+                                Data API
+                            </button>
+                            <br>
+                            <small class="text-muted">
+                                * Pastikan data di database sudah terisi
+                            </small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-lg-6 mb-3">
+                                <label for="tanggal_periksa" class="form-label">Tanggal Periksa</label>
+                                <input
+                                    type="datetime-local"
+                                    class="form-control"
+                                    id="tanggal_periksa"
+                                    name="tanggal_periksa"
+                                    value="{{ $tanggalPeriksa->format('Y-m-d\TH:i') }}" {{-- default hari ini --}}
+                                    required>
+                            </div>
+
+                            <div class="col-lg-6 mb-3">
+                                <label for="umur_bulan" class="form-label">Umur (Bulan)</label>
+                                <input
+                                    type="number"
+                                    class="form-control"
+                                    id="umur_bulan"
+                                    name="umur_bulan"
+                                    placeholder="Umur dalam bulan"
+                                    readonly>
+                            </div>
+                        </div>
+
 
                         <div class="form-group mb-2">
                             <label for="citra_telapak_kaki" class="form-label">Citra Telapak Kaki</label>
@@ -138,35 +190,53 @@
                     </div>
 
                     <script>
+                        document.getElementById('isiDariDB').addEventListener('click', function() {
+                            // Data dari Blade (server)
+                            const latestWeight = @json($latestWeight);
+                            const latestHeight = @json($latestHeight);
+
+                            // Isi field
+                            document.getElementById('berat_badan').value = latestWeight ?? '';
+                            document.getElementById('tinggi_badan').value = latestHeight ?? '';
+                        })
+
                         let stream = null;
 
                         // Start camera when modal is shown
                         document.getElementById('cameraModal').addEventListener('shown.bs.modal', async function() {
                             const video = document.getElementById('video');
-                            
+
                             try {
                                 // Dapatkan daftar perangkat kamera terlebih dahulu
                                 const devices = await navigator.mediaDevices.enumerateDevices();
                                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                                
+
                                 // Cari kamera eksternal (biasany labelnya tidak kosong)
-                                const externalCamera = videoDevices.find(device => device.label && 
-                                    !device.label.toLowerCase().includes('built-in') && 
+                                const externalCamera = videoDevices.find(device => device.label &&
+                                    !device.label.toLowerCase().includes('built-in') &&
                                     !device.label.toLowerCase().includes('internal'));
-                                
+
                                 const constraints = {
                                     video: {
-                                        width: { ideal: 1280 },
-                                        height: { ideal: 720 },
-                                        deviceId: externalCamera ? { exact: externalCamera.deviceId } : undefined
+                                        width: {
+                                            ideal: 1280
+                                        },
+                                        height: {
+                                            ideal: 720
+                                        },
+                                        deviceId: externalCamera ? {
+                                            exact: externalCamera.deviceId
+                                        } : undefined
                                     }
                                 };
-                                
+
                                 // Jika tidak menemukan kamera eksternal, gunakan kamera apa saja
                                 const stream = await navigator.mediaDevices.getUserMedia(
-                                    externalCamera ? constraints : { video: true }
+                                    externalCamera ? constraints : {
+                                        video: true
+                                    }
                                 );
-                                
+
                                 video.srcObject = stream;
                                 video.play();
                             } catch (error) {
@@ -389,6 +459,105 @@
     });
 </script>
 
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        console.log('DOM loaded'); // debug
+
+        const idAnakSelect = document.getElementById("id_anak");
+        const tanggalPeriksaInput = document.getElementById("tanggal_periksa");
+        const umurBulanInput = document.getElementById("umur_bulan");
+
+        // Cek apakah semua element ada
+        console.log('idAnakSelect:', idAnakSelect);
+        console.log('tanggalPeriksaInput:', tanggalPeriksaInput);
+        console.log('umurBulanInput:', umurBulanInput);
+
+        // Jika ada element yang tidak ditemukan, hentikan
+        if (!idAnakSelect || !tanggalPeriksaInput || !umurBulanInput) {
+            console.error('Ada element yang tidak ditemukan!');
+            console.error('Pastikan HTML memiliki element dengan ID: tanggal_periksa, umur_bulan');
+            return;
+        }
+
+        // Set tanggal hari ini sebagai default
+        function setTodayDate() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            const todayString = `${year}-${month}-${day}`;
+
+            console.log('Setting date to:', todayString);
+            tanggalPeriksaInput.value = todayString;
+
+            return todayString;
+        }
+
+        function hitungUmurBulan(tglLahir, tglPeriksa) {
+            let lahir = new Date(tglLahir);
+            let periksa = new Date(tglPeriksa);
+
+            let tahun = periksa.getFullYear() - lahir.getFullYear();
+            let bulan = periksa.getMonth() - lahir.getMonth();
+            let totalBulan = tahun * 12 + bulan;
+
+            // cek hari, kalau belum lewat hari lahir → kurangi 1 bulan 
+            if (periksa.getDate() < lahir.getDate()) {
+                totalBulan -= 1;
+            }
+            return totalBulan < 0 ? 0 : totalBulan;
+        }
+
+        function updateUmur() {
+            console.log('=== updateUmur dipanggil ===');
+            console.log('selectedIndex:', idAnakSelect.selectedIndex);
+            console.log('value:', idAnakSelect.value);
+
+            const selectedOption = idAnakSelect.options[idAnakSelect.selectedIndex];
+            const tglLahir = selectedOption ? selectedOption.getAttribute("data-tanggal-lahir") : null;
+            const tglPeriksa = tanggalPeriksaInput.value;
+
+            console.log('selectedOption:', selectedOption);
+            console.log('tglLahir:', tglLahir);
+            console.log('tglPeriksa:', tglPeriksa);
+
+            if (tglLahir && tglPeriksa) {
+                const umur = hitungUmurBulan(tglLahir, tglPeriksa);
+                umurBulanInput.value = umur;
+                console.log('✅ Umur berhasil dihitung:', umur);
+            } else {
+                umurBulanInput.value = "";
+                console.log('❌ Data tidak lengkap untuk hitung umur');
+            }
+            console.log('=== selesai updateUmur ===');
+        }
+
+        // Event listeners
+        idAnakSelect.addEventListener("change", function() {
+            console.log('👆 Select anak berubah ke:', this.value);
+            setTodayDate();
+            updateUmur();
+        });
+
+        tanggalPeriksaInput.addEventListener("change", function() {
+            console.log('📅 Tanggal berubah ke:', this.value);
+            updateUmur();
+        });
+
+        // Inisialisasi langsung
+        console.log('🚀 Menjalankan inisialisasi...');
+        setTodayDate();
+
+        // Cek apakah ada anak yang sudah terpilih
+        if (idAnakSelect.value && idAnakSelect.selectedIndex > 0) {
+            console.log('👶 Ada anak terpilih, hitung umur...');
+            updateUmur();
+        } else {
+            console.log('⏳ Belum ada anak terpilih');
+        }
+    });
+</script>
+
 <!-- Cek Session untuk Menampilkan Modal -->
 @if(session()->pull('success'))
 <script>
@@ -423,7 +592,4 @@
             })
             .catch(error => console.error('Error:', error));
     }
-
-    // Ambil data setiap 3 detik
-    setInterval(fetchLatestWeight, 3000);
 </script>

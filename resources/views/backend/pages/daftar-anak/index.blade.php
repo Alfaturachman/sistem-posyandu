@@ -20,7 +20,7 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="nik" class="form-label">NIK</label>
-                                <input type="text" class="form-control" id="nik" name="nik" placeholder="Masukkan NIK" required>
+                                <input type="text" class="form-control" id="nik" name="nik" placeholder="Masukkan NIK">
                             </div>
 
                             <div class="col-md-6 mb-3">

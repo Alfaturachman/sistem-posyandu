@@ -59,22 +59,21 @@ class PeriksaAnakController extends Controller
         $anakList = Anak::all();
 
         // Ambil data weight dari device_id tertentu
-        $latestWeight = DB::table('api_weight')
+        $latestWeight = DB::table('api_iot')
             ->where('device_id', 'isp32_scale_017')
             ->orderByDesc('timestamp')
             ->value('weight');
 
-        return view('backend.pages.periksa-anak.periksa', compact('anakList', 'latestWeight'));
-    }
-
-    public function getDatabaseWeight()
-    {
-        $latestWeight = DB::table('api_weight')
+        // Ambil data height dari device_id tertentu
+        $latestHeight = DB::table('api_iot')
             ->where('device_id', 'isp32_scale_017')
             ->orderByDesc('timestamp')
-            ->value('weight');
+            ->value('height');
 
-        return response()->json(['weight' => $latestWeight]);
+        // Default tanggal periksa
+        $tanggalPeriksa = now();
+
+        return view('backend.pages.periksa-anak.periksa', compact('anakList', 'latestWeight', 'latestHeight', 'tanggalPeriksa'));
     }
 
 
@@ -86,11 +85,19 @@ class PeriksaAnakController extends Controller
             'tinggi_badan' => 'required|numeric|min:0',
             'lingkar_lengan' => 'required|numeric|min:0',
             'lingkar_kepala' => 'required|numeric|min:0',
+            'tanggal_periksa' => 'required|date',
             'citra_telapak_kaki' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
 
         // Simpan data pemeriksaan
-        $data = $request->only(['id_anak', 'berat_badan', 'tinggi_badan', 'lingkar_lengan', 'lingkar_kepala']);
+        $data = $request->only([
+            'id_anak',
+            'berat_badan',
+            'tinggi_badan',
+            'lingkar_lengan',
+            'lingkar_kepala',
+            'tanggal_periksa'
+        ]);
         $pemeriksaan = Pemeriksaan::create($data);
 
         // Handle image upload (either from file or camera)
@@ -123,230 +130,518 @@ class PeriksaAnakController extends Controller
 
     private function processFootImage($file)
     {
-        // Store original image
-        $originalPath = $file->store('uploads/originals', 'public');
-        $fullPath = Storage::disk('public')->path($originalPath);
+        // ===== 0) Baca & validasi =====
+        $originalPath = $file->store('uploads/originals', 'custom_media');
+        $fullPath = Storage::disk('custom_media')->path($originalPath);
 
-        if (!file_exists($fullPath)) {
-            return ['error' => 'File tidak ditemukan!'];
-        }
+        if (!file_exists($fullPath)) return ['error' => 'File tidak ditemukan!'];
 
-        // Determine image type and create resource
-        $imageInfo = getimagesize($fullPath);
-        $mime = $imageInfo['mime'];
+        $info = getimagesize($fullPath);
+        if (!$info) return ['error' => 'Gagal membaca metadata gambar!'];
 
-        // Create image resource based on mime type
-        switch ($mime) {
-            case 'image/jpeg':
-                $imageResource = imagecreatefromjpeg($fullPath);
-                break;
-            case 'image/png':
-                $imageResource = imagecreatefrompng($fullPath);
-                break;
-            default:
-                return ['error' => 'Format gambar tidak didukung!'];
-        }
+        $mime = $info['mime'];
+        if ($mime === 'image/jpeg') $im = imagecreatefromjpeg($fullPath);
+        elseif ($mime === 'image/png') $im = imagecreatefrompng($fullPath);
+        else return ['error' => 'Format gambar tidak didukung!'];
 
-        // Convert to grayscale
-        imagefilter($imageResource, IMG_FILTER_GRAYSCALE);
+        $w = imagesx($im);
+        $h = imagesy($im);
 
-        // Get image dimensions
-        $width = imagesx($imageResource);
-        $height = imagesy($imageResource);
+        // ===== 1) Grayscale =====
+        imagefilter($im, IMG_FILTER_GRAYSCALE);
 
-        // Create binary image
-        $binaryImage = imagecreatetruecolor($width, $height);
+        // ===== 2) Enhanced tone analysis untuk deteksi arch =====
+        // Buat tone map untuk analisis intensitas
+        $toneMap = array();
+        $intensitySum = 0;
+        $pixelCount = 0;
 
-        // Convert to binary (black and white)
-        for ($y = 0; $y < $height; $y++) {
-            for ($x = 0; $x < $width; $x++) {
-                $rgb = imagecolorat($imageResource, $x, $y);
-                $colors = imagecolorsforindex($imageResource, $rgb);
-
-                // Threshold for binary conversion
-                $binaryColor = ($colors['red'] > 128) ? 255 : 0;
-                $binaryColorIndex = imagecolorallocate($binaryImage, $binaryColor, $binaryColor, $binaryColor);
-                imagesetpixel($binaryImage, $x, $y, $binaryColorIndex);
+        for ($y = 0; $y < $h; $y++) {
+            $toneMap[$y] = array();
+            for ($x = 0; $x < $w; $x++) {
+                $idx = imagecolorat($im, $x, $y);
+                $c = imagecolorsforindex($im, $idx);
+                $g = $c['red']; // sudah grayscale
+                $toneMap[$y][$x] = $g;
+                $intensitySum += $g;
+                $pixelCount++;
             }
         }
 
-        // Rotate image 90 degrees clockwise
-        $rotatedBinary = imagerotate($binaryImage, -90, 0);
+        $avgIntensity = $intensitySum / $pixelCount;
 
-        // Get rotated image dimensions
-        $width = imagesx($rotatedBinary);
-        $height = imagesy($rotatedBinary);
+        // ===== 3) Multi-level thresholding untuk deteksi arch =====
+        // Hitung histogram
+        $hist = array_fill(0, 256, 0);
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                $g = $toneMap[$y][$x];
+                $hist[$g]++;
+            }
+        }
 
-        // Image segmentation variables
-        $top = $height;
-        $bottom = 0;
-        $left = $width;
+        // Otsu threshold untuk separasi utama
+        $total = $w * $h;
+        $sum = 0;
+        for ($i = 0; $i < 256; $i++) $sum += $i * $hist[$i];
+
+        $sumB = 0;
+        $wB = 0;
+        $maxVar = -1;
+        $mainThreshold = 128;
+
+        for ($i = 0; $i < 256; $i++) {
+            $wB += $hist[$i];
+            if ($wB == 0) continue;
+
+            $wF = $total - $wB;
+            if ($wF == 0) break;
+
+            $sumB += $i * $hist[$i];
+            $mB = $sumB / $wB;
+            $mF = ($sum - $sumB) / $wF;
+            $between = $wB * $wF * ($mB - $mF) * ($mB - $mF);
+
+            if ($between > $maxVar) {
+                $maxVar = $between;
+                $mainThreshold = $i;
+            }
+        }
+
+        // Threshold tambahan untuk deteksi arch (area dengan tone sedang)
+        $archThresholdLow = $mainThreshold * 0.7;   // Area lebih gelap dari background
+        $archThresholdHigh = $mainThreshold * 1.3;  // Tapi lebih terang dari foreground solid
+
+        // ===== 4) Buat tiga level segmentasi =====
+        $bin = imagecreatetruecolor($w, $h);
+        $archMap = imagecreatetruecolor($w, $h);  // Map khusus untuk area arch
+
+        $white = imagecolorallocate($bin, 255, 255, 255);
+        $black = imagecolorallocate($bin, 0, 0, 0);
+        $gray = imagecolorallocate($bin, 128, 128, 128);  // untuk area arch
+
+        $archWhite = imagecolorallocate($archMap, 255, 255, 255);
+        $archBlack = imagecolorallocate($archMap, 0, 0, 0);
+        $archGray = imagecolorallocate($archMap, 128, 128, 128);
+
+        imagefilledrectangle($bin, 0, 0, $w, $h, $white);
+        imagefilledrectangle($archMap, 0, 0, $w, $h, $archWhite);
+
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                $g = $toneMap[$y][$x];
+
+                if ($g < $mainThreshold) {
+                    // Area gelap - solid foot contact
+                    imagesetpixel($bin, $x, $y, $black);
+                    imagesetpixel($archMap, $x, $y, $archBlack);
+                } elseif ($g >= $archThresholdLow && $g <= $archThresholdHigh) {
+                    // Area arch - tone sedang
+                    imagesetpixel($bin, $x, $y, $gray);
+                    imagesetpixel($archMap, $x, $y, $archGray);
+                } else {
+                    // Background
+                    imagesetpixel($bin, $x, $y, $white);
+                    imagesetpixel($archMap, $x, $y, $archWhite);
+                }
+            }
+        }
+
+        // ===== 5) Morphological operations dengan pertimbangan arch =====
+        $get = function ($img, $x, $y, $includeArch = false) use ($w, $h) {
+            if ($x < 0 || $y < 0 || $x >= $w || $y >= $h) return 0;
+            $c = imagecolorsforindex($img, imagecolorat($img, $x, $y));
+
+            if ($includeArch) {
+                return ($c['red'] <= 128) ? 1 : 0; // Include both black and gray (arch)
+            } else {
+                return ($c['red'] == 0) ? 1 : 0;   // Only pure black
+            }
+        };
+
+        // Light morphological operations to preserve arch details
+        $tmp = imagecreatetruecolor($w, $h);
+        $white2 = imagecolorallocate($tmp, 255, 255, 255);
+        $black2 = imagecolorallocate($tmp, 0, 0, 0);
+        $gray2 = imagecolorallocate($tmp, 128, 128, 128);
+        imagefilledrectangle($tmp, 0, 0, $w, $h, $white2);
+
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                $currentPixel = imagecolorsforindex($bin, imagecolorat($bin, $x, $y));
+                $isArch = ($currentPixel['red'] == 128);
+                $isFoot = ($currentPixel['red'] == 0);
+
+                if ($isArch) {
+                    // Preserve arch areas with minimal filtering
+                    $archCount = 0;
+                    $footCount = 0;
+                    for ($dy = -1; $dy <= 1; $dy++) {
+                        for ($dx = -1; $dx <= 1; $dx++) {
+                            $neighbor = $get($bin, $x + $dx, $y + $dy, true);
+                            if ($neighbor == 1) {
+                                $neighborPixel = imagecolorsforindex($bin, imagecolorat($bin, $x + $dx, $y + $dy));
+                                if ($neighborPixel['red'] == 128) $archCount++;
+                                else $footCount++;
+                            }
+                        }
+                    }
+
+                    if ($archCount + $footCount >= 3) {
+                        imagesetpixel($tmp, $x, $y, $gray2);
+                    } else {
+                        imagesetpixel($tmp, $x, $y, $white2);
+                    }
+                } elseif ($isFoot) {
+                    // Standard morphology for solid foot areas
+                    $ok = 1;
+                    for ($dy = -1; $dy <= 1; $dy++) {
+                        for ($dx = -1; $dx <= 1; $dx++) {
+                            $ok &= $get($bin, $x + $dx, $y + $dy, false);
+                        }
+                    }
+                    imagesetpixel($tmp, $x, $y, $ok ? $black2 : $white2);
+                } else {
+                    imagesetpixel($tmp, $x, $y, $white2);
+                }
+            }
+        }
+
+        // ===== 6) Rotasi =====
+        $rot = imagerotate($tmp, -90, $white2);
+        $w = imagesx($rot);
+        $h = imagesy($rot);
+
+        // ===== 7) Enhanced bounding box dengan arch consideration =====
+        $top = $h;
+        $bot = 0;
+        $left = $w;
         $right = 0;
 
-        // Segment image into three parts
-        $segmentHeight = floor($height / 3);
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                $c = imagecolorsforindex($rot, imagecolorat($rot, $x, $y));
+                if ($c['red'] <= 128) { // Include both foot contact and arch areas
+                    if ($y < $top) $top = $y;
+                    if ($y > $bot) $bot = $y;
+                    if ($x < $left) $left = $x;
+                    if ($x > $right) $right = $x;
+                }
+            }
+        }
 
-        $regionPixels = [
-            'toe' => ['x_total' => 0, 'y_total' => 0, 'count' => 0],
-            'arch' => ['x_total' => 0, 'y_total' => 0, 'count' => 0],
-            'heel' => ['x_total' => 0, 'y_total' => 0, 'count' => 0]
-        ];
+        if ($left >= $right || $top >= $bot) {
+            imagedestroy($im);
+            imagedestroy($bin);
+            imagedestroy($archMap);
+            imagedestroy($tmp);
+            imagedestroy($rot);
+            return ['error' => 'Telapak kaki tidak terdeteksi.'];
+        }
 
-        // Deteksi pixel hitam dengan sampling
-        $sampling_interval = max(1, floor($width / 500)); // Sampling untuk mengurangi beban memori
+        $footLength = max(0, $right - $left);
+        $footWidth = max(0, $bot - $top);
 
-        // Deteksi semua pixel hitam dengan pembobotan
-        for ($y = 0; $y < $height; $y += $sampling_interval) {
-            for ($x = 0; $x < $width; $x += $sampling_interval) {
-                $rgb = imagecolorat($rotatedBinary, $x, $y);
-                $colors = imagecolorsforindex($rotatedBinary, $rgb);
+        // ===== 8) Enhanced arch detection menggunakan analisis tone =====
+        $yStart = $top + (int)(0.25 * ($bot - $top));
+        $yEnd = $top + (int)(0.75 * ($bot - $top));
 
-                if ($colors['red'] == 0) { // Black pixel
-                    // Update boundary variables
-                    $top = min($top, $y);
-                    $bottom = max($bottom, $y);
-                    $left = min($left, $x);
-                    $right = max($right, $x);
+        $archRegions = array();
+        $minArchWidth = PHP_INT_MAX;
+        $bestArchY = $top;
+        $xS_medial = $left;
+        $xS_lateral = $right;
 
-                    // Tentukan region
-                    if ($y < $segmentHeight) { // Toe region
-                        $regionPixels['toe']['x_total'] += $x;
-                        $regionPixels['toe']['y_total'] += $y;
-                        $regionPixels['toe']['count']++;
-                    } elseif ($y >= $segmentHeight && $y < 2 * $segmentHeight) { // Arch region
-                        $regionPixels['arch']['x_total'] += $x;
-                        $regionPixels['arch']['y_total'] += $y;
-                        $regionPixels['arch']['count']++;
-                    } else { // Heel region
-                        $regionPixels['heel']['x_total'] += $x;
-                        $regionPixels['heel']['y_total'] += $y;
-                        $regionPixels['heel']['count']++;
+        for ($y = $yStart; $y <= $yEnd; $y++) {
+            $minX = null;
+            $maxX = null;
+            $archMinX = null;
+            $archMaxX = null;
+            $solidCount = 0;
+            $archCount = 0;
+
+            for ($x = $left; $x <= $right; $x++) {
+                $c = imagecolorsforindex($rot, imagecolorat($rot, $x, $y));
+
+                if ($c['red'] == 0) { // Solid foot contact
+                    if ($minX === null) $minX = $x;
+                    $maxX = $x;
+                    $solidCount++;
+                } elseif ($c['red'] == 128) { // Arch area
+                    if ($archMinX === null) $archMinX = $x;
+                    $archMaxX = $x;
+                    $archCount++;
+
+                    if ($minX === null) $minX = $x;
+                    $maxX = $x;
+                }
+            }
+
+            if ($minX !== null && $maxX !== null) {
+                $totalWidth = $maxX - $minX + 1;
+                $archRatio = $archCount / max(1, $solidCount + $archCount);
+
+                // Prioritize rows with significant arch presence
+                $archScore = $totalWidth * (1 - $archRatio * 0.5); // Narrower is better, arch presence is considered
+
+                if ($archScore < $minArchWidth && $archRatio > 0.1) { // At least 10% arch area
+                    $minArchWidth = $archScore;
+                    $bestArchY = $y;
+
+                    $xCenter = ($left + $right) / 2.0;
+                    $xS_medial = (abs($minX - $xCenter) < abs($maxX - $xCenter)) ? $minX : $maxX;
+                    $xS_lateral = ($xS_medial == $minX) ? $maxX : $minX;
+                }
+
+                $archRegions[] = array(
+                    'y' => $y,
+                    'width' => $totalWidth,
+                    'arch_ratio' => $archRatio,
+                    'solid_count' => $solidCount,
+                    'arch_count' => $archCount
+                );
+            }
+        }
+
+        $S = ['x' => $xS_medial, 'y' => $bestArchY];
+
+        // ===== 9) Enhanced heel detection =====
+        $yF = $bot;
+        $minXF = null;
+        $maxXF = null;
+
+        // Search for heel in bottom rows
+        for ($searchY = $bot; $searchY >= $bot - 10 && $searchY >= $top; $searchY--) {
+            $tempMinX = null;
+            $tempMaxX = null;
+            for ($x = $left; $x <= $right; $x++) {
+                $c = imagecolorsforindex($rot, imagecolorat($rot, $x, $searchY));
+                if ($c['red'] <= 128) {
+                    if ($tempMinX === null) $tempMinX = $x;
+                    $tempMaxX = $x;
+                }
+            }
+
+            if ($tempMinX !== null) {
+                $minXF = $tempMinX;
+                $maxXF = $tempMaxX;
+                $yF = $searchY;
+                break;
+            }
+        }
+
+        if ($minXF === null) {
+            $minXF = $left;
+            $maxXF = $left;
+        }
+
+        $xF = (int)round(($minXF + $maxXF) / 2);
+        $F = ['x' => $xF, 'y' => $yF];
+
+        // ===== 10) Enhanced toe detection =====
+        $yT = $top;
+        $xT = $left;
+
+        // Search for toe in top rows
+        for ($searchY = $top; $searchY <= $top + 10 && $searchY <= $bot; $searchY++) {
+            if ($xS_medial <= ($left + $right) / 2) {
+                // Medial di sebelah kiri
+                for ($x = $left; $x <= $right; $x++) {
+                    $c = imagecolorsforindex($rot, imagecolorat($rot, $x, $searchY));
+                    if ($c['red'] <= 128) {
+                        $xT = $x;
+                        $yT = $searchY;
+                        goto found_toe;
+                    }
+                }
+            } else {
+                // Medial di kanan
+                for ($x = $right; $x >= $left; $x--) {
+                    $c = imagecolorsforindex($rot, imagecolorat($rot, $x, $searchY));
+                    if ($c['red'] <= 128) {
+                        $xT = $x;
+                        $yT = $searchY;
+                        goto found_toe;
                     }
                 }
             }
         }
 
-        // Calculate foot dimensions
-        $footLength = max(0, $right - $left);
-        $footWidth = max(0, $bottom - $top);
+        found_toe:
+        $T = ['x' => $xT, 'y' => $yT];
+        $points = ['toe' => $T, 'arch' => $S, 'heel' => $F];
 
-        // Hitung titik rata-rata
-        $points = [];
-        foreach ($regionPixels as $key => $region) {
-            if ($region['count'] > 0) {
-                $points[$key] = [
-                    'x' => round($region['x_total'] / $region['count']),
-                    'y' => round($region['y_total'] / $region['count'])
-                ];
+        // ===== 11) Clarke angle calculation =====
+        $STx = $T['x'] - $S['x'];
+        $STy = $T['y'] - $S['y'];
+        $SFx = $F['x'] - $S['x'];
+        $SFy = $F['y'] - $S['y'];
+
+        $magST = sqrt($STx * $STx + $STy * $STy);
+        $magSF = sqrt($SFx * $SFx + $SFy * $SFy);
+
+        if ($magST < 1e-6 || $magSF < 1e-6) {
+            imagedestroy($im);
+            imagedestroy($bin);
+            imagedestroy($archMap);
+            imagedestroy($tmp);
+            imagedestroy($rot);
+            return ['error' => 'Vektor terlalu kecil, tidak bisa hitung sudut.'];
+        }
+
+        $dot = $STx * $SFx + $STy * $SFy;
+        $cosTheta = $dot / ($magST * $magSF);
+        $cosTheta = max(-1.0, min(1.0, $cosTheta));
+
+        $angleBetweenVectors = rad2deg(acos($cosTheta));
+        $clarkeAngle = 180.0 - $angleBetweenVectors;
+        $clarkeAngle = max(0.0, min(180.0, $clarkeAngle));
+
+        if (!is_numeric($clarkeAngle) || $clarkeAngle <= 0 || $clarkeAngle > 180) {
+            imagedestroy($im);
+            imagedestroy($bin);
+            imagedestroy($archMap);
+            imagedestroy($tmp);
+            imagedestroy($rot);
+            return ['error' => 'Gagal menghitung Clarke Angle (hasil tidak valid).'];
+        }
+
+        // ===== 12) Enhanced classification with arch area consideration =====
+        $archType = "Normal";
+        if ($clarkeAngle < 30) $archType = "Flat Foot (Pes Planus)";
+        elseif ($clarkeAngle < 45) $archType = "Moderate Arch";
+        else $archType = "High Arch (Pes Cavus)";
+
+        // ===== 13) Create enhanced visualization =====
+        $timestamp = time();
+        $overlay = imagecreatetruecolor($w, $h);
+        $whiteOL = imagecolorallocate($overlay, 255, 255, 255);
+        imagefilledrectangle($overlay, 0, 0, $w, $h, $whiteOL);
+
+        // Enhanced visualization showing arch areas
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                $c = imagecolorsforindex($rot, imagecolorat($rot, $x, $y));
+                if ($c['red'] == 0) {
+                    // Solid foot contact - black
+                    imagesetpixel($overlay, $x, $y, imagecolorallocate($overlay, 0, 0, 0));
+                } elseif ($c['red'] == 128) {
+                    // Arch area - dark gray
+                    imagesetpixel($overlay, $x, $y, imagecolorallocate($overlay, 100, 100, 100));
+                } else {
+                    // Background - white
+                    imagesetpixel($overlay, $x, $y, $whiteOL);
+                }
             }
         }
 
-        // Fallback jika deteksi gagal
-        if (empty($points['toe']) || empty($points['heel']) || empty($points['arch'])) {
-            $points = [
-                'toe' => ['x' => $left, 'y' => $top],
-                'heel' => ['x' => $right, 'y' => $bottom],
-                'arch' => [
-                    'x' => ($left + $right) / 2,
-                    'y' => ($top + $bottom) / 2
-                ]
-            ];
-        }
+        // Draw points and lines
+        $red = imagecolorallocate($overlay, 255, 0, 0);
+        $blue = imagecolorallocate($overlay, 0, 0, 255);
+        $green = imagecolorallocate($overlay, 0, 200, 0);
+        $orange = imagecolorallocate($overlay, 255, 140, 0);
+        $blackC = imagecolorallocate($overlay, 0, 0, 0);
 
-        Log::info("Memory-Efficient Points Detection:", $points);
+        // Draw dashed lines
+        $drawDashed = function ($img, $x1, $y1, $x2, $y2, $col) {
+            $dx = $x2 - $x1;
+            $dy = $y2 - $y1;
+            $len = max(1, (int)hypot($dx, $dy));
+            for ($i = 0; $i <= $len; $i += 6) {
+                $t1 = $i / $len;
+                $t2 = min(($i + 3) / $len, 1);
+                $xa = (int)round($x1 + $t1 * $dx);
+                $ya = (int)round($y1 + $t1 * $dy);
+                $xb = (int)round($x1 + $t2 * $dx);
+                $yb = (int)round($y1 + $t2 * $dy);
+                imageline($img, $xa, $ya, $xb, $yb, $col);
+            }
+        };
 
-        // Perhitungan vektor dengan log tambahan
-        $V31x = $points['heel']['x'] - $points['toe']['x'];
-        $V31y = $points['heel']['y'] - $points['toe']['y'];
-        $V32x = $points['heel']['x'] - $points['arch']['x'];
-        $V32y = $points['heel']['y'] - $points['arch']['y'];
+        $drawDashed($overlay, $S['x'], $S['y'], $T['x'], $T['y'], $orange);
+        $drawDashed($overlay, $S['x'], $S['y'], $F['x'], $F['y'], $orange);
 
-        Log::info("Detailed Vector Calculation:", [
-            'V31x' => $V31x,
-            'V31y' => $V31y,
-            'V32x' => $V32x,
-            'V32y' => $V32y
-        ]);
+        // Draw points
+        imagefilledellipse($overlay, $S['x'], $S['y'], 8, 8, $green);
+        imagefilledellipse($overlay, $T['x'], $T['y'], 8, 8, $red);
+        imagefilledellipse($overlay, $F['x'], $F['y'], 8, 8, $blue);
 
-        // Perhitungan panjang vektor
-        $V_31 = sqrt(pow($V31x, 2) + pow($V31y, 2));
-        $V_32 = sqrt(pow($V32x, 2) + pow($V32y, 2));
+        // Labels
+        imagestring($overlay, 3, $T['x'] + 5, $T['y'] - 12, 'T', $blackC);
+        imagestring($overlay, 3, $S['x'] + 5, $S['y'] - 12, 'S', $blackC);
+        imagestring($overlay, 3, $F['x'] + 5, $F['y'] - 12, 'F', $blackC);
+        imagestring($overlay, 4, $S['x'] + 10, $S['y'] + 10, sprintf("Clarke: %.2f°", $clarkeAngle), $blackC);
 
-        Log::info("Vector Lengths:", [
-            'V_31' => $V_31,
-            'V_32' => $V_32
-        ]);
-
-        // Pastikan tidak ada pembagian dengan nol
-        if ($V_31 > 0 && $V_32 > 0) {
-            $V31dotV32 = $V31x * $V32x + $V31y * $V32y;
-            $cosTheta = $V31dotV32 / ($V_31 * $V_32);
-            $cosTheta = max(min($cosTheta, 1), -1);
-
-            $clarkeAngle = rad2deg(acos($cosTheta));
-
-            Log::info("Detailed Angle Calculation:", [
-                'dot_product' => $V31dotV32,
-                'cos_theta' => $cosTheta,
-                'clarke_angle' => $clarkeAngle
-            ]);
-        } else {
-            Log::error("Vector length zero detected");
-            $clarkeAngle = 0;
-        }
-
-        // Hitung dot product
-        $V31dotV32 = $V31x * $V32x + $V31y * $V32y;
-
-        // Gunakan metode cross product untuk sudut
-        $crossProduct = $V31x * $V32y - $V31y * $V32x;
-        $dotProduct = $V31x * $V32x + $V31y * $V32y;
-
-        // Hitung sudut menggunakan atan2
-        $clarkeAngle = abs(rad2deg(atan2($crossProduct, $dotProduct)));
-
-        Log::info("Angle Calculation Method 2:", [
-            'cross_product' => $crossProduct,
-            'dot_product' => $dotProduct,
-            'clarke_angle' => $clarkeAngle
-        ]);
-
-        // Tambahkan validasi tambahan
-        if (!is_numeric($clarkeAngle) || $clarkeAngle < 0 || $clarkeAngle > 180) {
-            Log::error('Sudut Clarke tidak valid: ' . $clarkeAngle);
-            return ['error' => 'Gagal menghitung Clarke Angle karena hasil tidak valid!'];
-        }
-
-        // Arch type classification
-        $archType = "Normal";
-        if ($clarkeAngle < 30) {
-            $archType = "Flat Foot (Pes Planus)";
-        } elseif ($clarkeAngle >= 30 && $clarkeAngle < 45) {
-            $archType = "Moderate Arch";
-        } elseif ($clarkeAngle >= 45) {
-            $archType = "High Arch (Pes Cavus)";
-        }
-
-        // Save processed image
-        $processedFilename = 'processed_' . time() . '.jpg';
+        $processedFilename = 'processed_' . $timestamp . '.jpg';
         $processedPath = 'uploads/processed/' . $processedFilename;
+        imagejpeg($overlay, Storage::disk('custom_media')->path($processedPath), 90);
 
-        // Save the rotated binary image
-        imagejpeg($rotatedBinary, Storage::disk('public')->path($processedPath), 80);
+        // ===== 14) Create enhanced segmented image =====
+        $segmented = imagecreatetruecolor($w, $h);
+        $whiteS = imagecolorallocate($segmented, 255, 255, 255);
+        imagefilledrectangle($segmented, 0, 0, $w, $h, $whiteS);
 
-        // Free up memory
-        imagedestroy($imageResource);
-        imagedestroy($binaryImage);
-        imagedestroy($rotatedBinary);
+        $cHeel = imagecolorallocate($segmented, 255, 0, 0);     // Red for heel
+        $cArch = imagecolorallocate($segmented, 0, 255, 0);     // Green for arch
+        $cToe = imagecolorallocate($segmented, 0, 0, 255);      // Blue for toe
+        $cArchTone = imagecolorallocate($segmented, 255, 255, 0); // Yellow for arch tone areas
+
+        $regionH = (int)(($bot - $top) / 3);
+        $heelTop = $bot - $regionH;
+        $archTop = $top + $regionH;
+        $archBottom = $bot - $regionH;
+
+        for ($y = $top; $y <= $bot; $y++) {
+            for ($x = $left; $x <= $right; $x++) {
+                $c = imagecolorsforindex($rot, imagecolorat($rot, $x, $y));
+
+                if ($c['red'] <= 128) { // Include both solid and arch areas
+                    if ($c['red'] == 128) {
+                        // Arch tone area - use special color
+                        imagesetpixel($segmented, $x, $y, $cArchTone);
+                    } else {
+                        // Solid foot contact - segment by region
+                        if ($y < $archTop) {
+                            imagesetpixel($segmented, $x, $y, $cToe);
+                        } elseif ($y <= $archBottom) {
+                            imagesetpixel($segmented, $x, $y, $cArch);
+                        } else {
+                            imagesetpixel($segmented, $x, $y, $cHeel);
+                        }
+                    }
+                }
+            }
+        }
+
+        $segFilename = 'segmented_' . $timestamp . '.jpg';
+        $segPath = 'uploads/processed/' . $segFilename;
+        imagejpeg($segmented, Storage::disk('custom_media')->path($segPath), 90);
+
+        // ===== 15) Cleanup =====
+        imagedestroy($im);
+        imagedestroy($bin);
+        imagedestroy($archMap);
+        imagedestroy($tmp);
+        imagedestroy($rot);
+        imagedestroy($overlay);
+        imagedestroy($segmented);
 
         return [
-            'message' => 'Citra berhasil diproses!',
+            'message' => 'Citra berhasil diproses dengan analisis tone yang ditingkatkan!',
             'processed_image' => $processedPath,
+            'segmented_image' => $segPath,
             'panjang_telapak_kaki' => $footLength,
             'lebar_telapak_kaki' => $footWidth,
             'clarke_angle' => round($clarkeAngle, 2),
             'arch_type' => $archType,
-            'debug_points' => $points
+            'debug_points' => $points,
+            'debug_boundaries' => compact('top', 'bot', 'left', 'right'),
+            'thresholds' => [
+                'main' => $mainThreshold,
+                'arch_low' => $archThresholdLow,
+                'arch_high' => $archThresholdHigh
+            ],
+            'arch_analysis' => $archRegions
         ];
     }
 

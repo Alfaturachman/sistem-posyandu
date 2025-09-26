@@ -49,27 +49,62 @@ class PortalController extends Controller
             return abort(404, 'Data anak tidak ditemukan');
         }
 
-        // Ambil data pemeriksaan terkait anak tersebut (beserta citra telapak kaki)
+        // Ambil semua data pemeriksaan terkait anak tersebut
         $pemeriksaans = Pemeriksaan::with('citraTelapakKaki')
             ->where('id_anak', $anak->id)
-            ->orderBy('tanggal_periksa', 'desc') // Urutkan berdasarkan tanggal terbaru
+            ->orderBy('tanggal_periksa', 'asc')
             ->get();
 
-        // Ambil data pemeriksaan dalam 12 bulan terakhir
-        $pemeriksaanPerBulan = Pemeriksaan::where('id_anak', $anak->id)
-            ->whereBetween('tanggal_periksa', [now()->subMonths(11)->startOfMonth(), now()->endOfMonth()])
-            ->selectRaw('MONTH(tanggal_periksa) as bulan, COUNT(*) as jumlah')
-            ->groupBy('bulan')
-            ->pluck('jumlah', 'bulan')
-            ->toArray();
+        // Hitung umur anak pada setiap pemeriksaan (dalam bulan) dan simpan data terbaru
+        $beratData = array_fill(24, 37, null);
+        $tinggiData = array_fill(24, 37, null);
+        $lingkarKepalaData = array_fill(24, 37, null);
+        $lingkarLenganData = array_fill(24, 37, null);
+        $filteredPemeriksaans = [];
 
-        // Buat data lengkap untuk 12 bulan terakhir (1-12)
-        $chartData = [];
-        for ($i = 1; $i <= 12; $i++) {
-            $chartData[] = $pemeriksaanPerBulan[$i] ?? 0; // Jika tidak ada data, isi 0
+        foreach ($pemeriksaans as $pemeriksaan) {
+            // Hitung umur dalam bulan pada saat pemeriksaan
+            $tanggalLahir = \Carbon\Carbon::parse($anak->tanggal_lahir);
+            $tanggalPeriksa = \Carbon\Carbon::parse($pemeriksaan->tanggal_periksa);
+            $umurBulan = $tanggalLahir->diffInMonths($tanggalPeriksa);
+
+            // Hanya menyertakan data dengan umur 24-60 bulan
+            if ($umurBulan >= 24 && $umurBulan <= 60) {
+                // Simpan hanya data terbaru untuk setiap umur
+                $beratData[$umurBulan] = $pemeriksaan->berat_badan;
+                $tinggiData[$umurBulan] = $pemeriksaan->tinggi_badan;
+                $lingkarKepalaData[$umurBulan] = $pemeriksaan->lingkar_kepala;
+                $lingkarLenganData[$umurBulan] = $pemeriksaan->lingkar_lengan;
+                $filteredPemeriksaans[] = $pemeriksaan;
+            }
         }
 
-        // Kirim data ke tampilan
-        return view('frontend.show', compact('anak', 'pemeriksaans', 'chartData'));
+        // Buat array untuk sumbu X (24-60)
+        $umurData = range(24, 60);
+
+        // Jika tidak ada data dalam rentang 24-60 bulan
+        if (empty($filteredPemeriksaans)) {
+            return view('frontend.show', [
+                'anak' => $anak,
+                'pemeriksaans' => collect([]),
+                'beratData' => array_values($beratData),
+                'tinggiData' => array_values($tinggiData),
+                'lingkarKepalaData' => array_values($lingkarKepalaData),
+                'lingkarLenganData' => array_values($lingkarLenganData),
+                'umurData' => $umurData,
+                'message' => 'Tidak ada data pemeriksaan dalam rentang umur 24-60 bulan'
+            ]);
+        }
+
+        // Kirim data ke view
+        return view('frontend.show', compact(
+            'anak',
+            'pemeriksaans',
+            'beratData',
+            'tinggiData',
+            'lingkarKepalaData',
+            'lingkarLenganData',
+            'umurData'
+        ));
     }
 }
