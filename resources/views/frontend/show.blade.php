@@ -75,6 +75,7 @@
 
     <input type="hidden" name="nama_anak" value="{{ $anak->nama_anak }}">
     <input type="hidden" name="jenis_kelamin" value="{{ $anak->jenis_kelamin }}">
+    <input type="hidden" name="nik" value="{{ $anak->nik }}">
 
     <div class="text-center mb-3">
         <a href="#" class="btn" id="downloadPdfBtn" style="background: var(--accent-color); color: white; text-decoration: none;">
@@ -174,64 +175,115 @@
 <!-- Include Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-document.getElementById("downloadPdfBtn").addEventListener("click", function(e) {
-    e.preventDefault();
+    document.getElementById("downloadPdfBtn").addEventListener("click", function(e) {
+        e.preventDefault();
 
-    // Ambil semua canvas chart
-    const chartIds = [
-        "beratBadanPerempuanChart",
-        "tinggiBadanPerempuanChart",
-        "lingkarKepalaPerempuanChart",
-        "lingkarLenganPerempuanChart"
-    ];
+        // Loading state
+        this.disabled = true;
+        this.textContent = 'Generating PDF...';
 
-    const images = [];
-    chartIds.forEach(id => {
-        const canvas = document.getElementById(id);
-        if (canvas && canvas.tagName.toLowerCase() === "canvas") {
-            images.push(canvas.toDataURL("image/png", 1.0));
+        try {
+            const chartIds = [
+                "beratBadanPerempuanChart",
+                "tinggiBadanPerempuanChart",
+                "lingkarKepalaPerempuanChart",
+                "lingkarLenganPerempuanChart"
+            ];
+
+            const images = [];
+            let canvasCount = 0;
+
+            chartIds.forEach(id => {
+                const canvas = document.getElementById(id);
+                if (canvas && canvas.tagName.toLowerCase() === "canvas") {
+                    // Reduce quality untuk mengurangi size
+                    const dataURL = canvas.toDataURL("image/png", 0.8);
+                    images.push(dataURL);
+                    canvasCount++;
+                    console.log(`Canvas ${id} captured, size: ${dataURL.length}`);
+                }
+            });
+
+            if (images.length === 0) {
+                throw new Error('Tidak ada chart yang ditemukan');
+            }
+
+            console.log(`Total ${canvasCount} canvas captured`);
+
+            // Validasi input
+            const namaAnak = document.querySelector("[name='nama_anak']")?.value;
+            const jenisKelamin = document.querySelector("[name='jenis_kelamin']")?.value;
+            const nik = document.querySelector("[name='nik']")?.value;
+
+            console.log('Form data:', {
+                namaAnak,
+                jenisKelamin,
+                nik
+            });
+
+            if (!namaAnak || !jenisKelamin || !nik) {
+                throw new Error('Data anak tidak lengkap');
+            }
+
+            const formData = new FormData();
+            images.forEach((img, index) => {
+                formData.append("images[]", img);
+            });
+            formData.append("nama_anak", namaAnak);
+            formData.append("jenis_kelamin", jenisKelamin);
+            formData.append("nik", nik);
+
+            console.log('Sending request to server...');
+
+            fetch("{{ route('download.pdf') }}", {
+                    method: "POST",
+                    headers: {
+                        "X-CSRF-TOKEN": "{{ csrf_token() }}"
+                    },
+                    body: formData
+                })
+                .then(response => {
+                    console.log('Response status:', response.status);
+
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            console.error('Server response:', text);
+                            throw new Error(`Server error (${response.status}): ${text}`);
+                        });
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    console.log('PDF blob received, size:', blob.size);
+
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `hasil_pemeriksaan_${namaAnak}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+
+                    console.log('Download completed');
+                })
+                .catch(err => {
+                    console.error("Download error:", err);
+                    alert("Terjadi error: " + err.message);
+                })
+                .finally(() => {
+                    // Reset button
+                    this.disabled = false;
+                    this.textContent = 'Download PDF';
+                });
+
+        } catch (err) {
+            console.error("Client error:", err);
+            alert("Error: " + err.message);
+            this.disabled = false;
+            this.textContent = 'Download PDF';
         }
     });
-
-    // Ambil data dari hidden input
-    const namaAnak = document.querySelector("[name='nama_anak']").value;
-    const jenisKelamin = document.querySelector("[name='jenis_kelamin']").value;
-
-    console.log("Nama Anak:", namaAnak);
-    console.log("Jenis Kelamin:", jenisKelamin);
-
-    const formData = new FormData();
-    images.forEach(img => formData.append("images[]", img));
-    formData.append("nama_anak", namaAnak);
-    formData.append("jenis_kelamin", jenisKelamin);
-
-    fetch("{{ route('download.pdf') }}", {
-        method: "POST",
-        headers: {
-            "X-CSRF-TOKEN": "{{ csrf_token() }}"
-        },
-        body: formData
-    })
-    .then(res => {
-        if (!res.ok) throw new Error("Gagal generate PDF (status: " + res.status + ")");
-        return res.blob();
-    })
-    .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "hasil_pemeriksaan.pdf";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-    })
-    .catch(err => {
-        console.error("Download error:", err);
-        alert("Terjadi error: " + err.message);
-    });
-});
-
 </script>
 
 <script>
@@ -988,7 +1040,7 @@ document.getElementById("downloadPdfBtn").addEventListener("click", function(e) 
             plugins: {
                 title: {
                     display: true,
-                    text: 'Grafik Lingkar Kepala Pemeriksaan Balita',
+                    text: 'Grafik Lingkar Lengan Pemeriksaan Balita',
                     font: {
                         size: window.innerWidth < 576 ? 14 : 18
                     }

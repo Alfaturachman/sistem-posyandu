@@ -118,24 +118,38 @@
                                             </div>
                                             <div class="modal-body text-center">
                                                 <p><strong>Processed:</strong></p>
-                                                <img src="{{ asset('media/storage/' . $periksa->citraTelapakKaki->path_citra) }}"
+                                                <img src="{{ asset('storage/' . $periksa->citraTelapakKaki->path_citra) }}"
                                                     alt="Citra Telapak Kaki"
                                                     class="img-fluid mb-3"
                                                     style="max-height: 300px;">
 
-                                                @if(file_exists(public_path('media/storage/' . $segmentedPath)))
+                                                @if(file_exists(public_path('storage/' . $segmentedPath)))
                                                 <p><strong>Segmented:</strong></p>
-                                                <img src="{{ asset('media/storage/' . $segmentedPath) }}"
+                                                <img src="{{ asset('storage/' . $segmentedPath) }}"
                                                     alt="Citra Telapak Kaki Tersegmentasi"
                                                     class="img-fluid mb-3"
                                                     style="max-height: 300px;">
                                                 @endif
 
-                                                <ul class="list-unstyled">
-                                                    @if($periksa->citraTelapakKaki->clarke_angle)
-                                                    <li><strong>Clarke Angle:</strong> {{ $periksa->citraTelapakKaki->clarke_angle }}°</li>
-                                                    @endif
-                                                </ul>
+<ul class="list-unstyled">
+    @if($periksa->citraTelapakKaki->clarke_angle)
+        <li>
+            <strong>Clarke&rsquo;s Angle:</strong> {{ $periksa->citraTelapakKaki->clarke_angle }}&deg;
+        </li>
+
+        @php
+            $angle = $periksa->citraTelapakKaki->clarke_angle;
+        @endphp
+
+        @if($angle < 30)
+            <li><strong>Kategori:</strong> Kaki datar (Flat Foot)</li>
+        @elseif($angle >= 30 && $angle <= 45)
+            <li><strong>Kategori:</strong> Normal</li>
+        @elseif($angle > 45)
+            <li><strong>Kategori:</strong> Kaki tinggi (High Arch)</li>
+        @endif
+    @endif
+</ul>
                                             </div>
                                         </div>
                                     </div>

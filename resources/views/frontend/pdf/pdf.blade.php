@@ -137,6 +137,17 @@
             padding: 5px;
             border-radius: 5px;
         }
+        .note-box {
+            background-color: #ffe6f0; /* merah muda */
+            border: 1px solid #ff99bb;
+            padding: 12px 15px;
+            margin: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #b30047;
+            border-radius: 5px;
+            text-align: center;
+        }
     </style>
 </head>
 
@@ -189,11 +200,17 @@
     </table>
 
     <h2>Grafik Pemeriksaan</h2>
-    @foreach ($images as $img)
+@foreach ($images as $img)
     <div class="chart">
         <img src="{{ $img }}">
     </div>
-    @endforeach
+@endforeach
+
+    <div class="note-box">
+        JIKA GRAFIK HASIL PEMERIKSAAN MENDATAR ATAU MENURUN MEMOTONG GARIS, 
+        HAL ITU MENANDAKAN KURANG DARI KENAIKAN MINIMAL, YANG DI SESUAIKAN 
+        OLEH PERMENKES NOMOR 2 TAHUN 2020 TENTANG STANDAR ANTROPOMETRI ANAK
+    </div>
 
     <!-- Footer -->
     <div class="footer">

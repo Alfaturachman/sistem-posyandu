@@ -37,4 +37,9 @@ class Pemeriksaan extends Model
     {
         return $this->hasOne(CitraTelapakKaki::class, 'id_pemeriksaan');
     }
+
+    public function pdfcitraTelapakKaki()
+    {
+        return $this->hasMany(CitraTelapakKaki::class, 'id_pemeriksaan');
+    }
 }

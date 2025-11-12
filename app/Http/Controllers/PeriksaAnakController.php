@@ -119,6 +119,8 @@ class PeriksaAnakController extends Controller
             CitraTelapakKaki::create([
                 'id_pemeriksaan' => $pemeriksaan->id,
                 'path_citra' => $hasilProses['processed_image'],
+                'path_original' => $hasilProses['original_path'],
+                'path_segmented' => $hasilProses['segmented_image'],
                 'panjang_telapak_kaki' => number_format($panjang_cm, 2),
                 'lebar_telapak_kaki' => number_format($lebar_cm, 2),
                 'clarke_angle' => number_format($hasilProses['clarke_angle'], 2),
@@ -128,11 +130,15 @@ class PeriksaAnakController extends Controller
         return redirect()->route('periksa')->with('success', 'Data pemeriksaan berhasil ditambahkan.');
     }
 
+
     private function processFootImage($file)
     {
+        $timestamp = time();
+        $processedImages = [];
+
         // ===== 0) Baca & validasi =====
-        $originalPath = $file->store('uploads/originals', 'custom_media');
-        $fullPath = Storage::disk('custom_media')->path($originalPath);
+        $originalPath = $file->store('uploads/originals', 'public');
+        $fullPath = Storage::disk('public')->path($originalPath);
 
         if (!file_exists($fullPath)) return ['error' => 'File tidak ditemukan!'];
 
@@ -147,11 +153,37 @@ class PeriksaAnakController extends Controller
         $w = imagesx($im);
         $h = imagesy($im);
 
+        // Save Step 0: Original
+        $step0Path = "uploads/processed/step_0_original_{$timestamp}.jpg";
+        imagejpeg($im, Storage::disk('public')->path($step0Path), 90);
+        $processedImages['step_0_original'] = $step0Path;
+
         // ===== 1) Grayscale =====
         imagefilter($im, IMG_FILTER_GRAYSCALE);
 
-        // ===== 2) Enhanced tone analysis untuk deteksi arch =====
-        // Buat tone map untuk analisis intensitas
+        // Save Step 1: Grayscale
+        $step1Path = "uploads/processed/step_1_grayscale_{$timestamp}.jpg";
+        imagejpeg($im, Storage::disk('public')->path($step1Path), 90);
+        $processedImages['step_1_grayscale'] = $step1Path;
+
+        // ===== 2) FAST Feature Detection =====
+        $threshold = 20;
+        $keypoints = $this->detectFAST($im, $threshold);
+
+        // Create image with keypoints
+        $imFast = imagecreatefromjpeg(Storage::disk('public')->path($step1Path));
+        $redColor = imagecolorallocate($imFast, 255, 0, 0);
+        foreach ($keypoints as $point) {
+            imagefilledellipse($imFast, $point['x'], $point['y'], 5, 5, $redColor);
+        }
+
+        // Save Step 2: FAST Keypoints
+        $step2Path = "uploads/processed/step_2_fast_keypoints_{$timestamp}.jpg";
+        imagejpeg($imFast, Storage::disk('public')->path($step2Path), 90);
+        $processedImages['step_2_fast_keypoints'] = $step2Path;
+        imagedestroy($imFast);
+
+        // ===== 3) Enhanced tone analysis =====
         $toneMap = array();
         $intensitySum = 0;
         $pixelCount = 0;
@@ -161,7 +193,7 @@ class PeriksaAnakController extends Controller
             for ($x = 0; $x < $w; $x++) {
                 $idx = imagecolorat($im, $x, $y);
                 $c = imagecolorsforindex($im, $idx);
-                $g = $c['red']; // sudah grayscale
+                $g = $c['red'];
                 $toneMap[$y][$x] = $g;
                 $intensitySum += $g;
                 $pixelCount++;
@@ -170,8 +202,12 @@ class PeriksaAnakController extends Controller
 
         $avgIntensity = $intensitySum / $pixelCount;
 
-        // ===== 3) Multi-level thresholding untuk deteksi arch =====
-        // Hitung histogram
+        // Save Step 3: Tone Map (visualisasi sama dengan grayscale)
+        $step3Path = "uploads/processed/step_3_tone_analysis_{$timestamp}.jpg";
+        imagejpeg($im, Storage::disk('public')->path($step3Path), 90);
+        $processedImages['step_3_tone_analysis'] = $step3Path;
+
+        // ===== 4) Multi-level thresholding - Otsu =====
         $hist = array_fill(0, 256, 0);
         for ($y = 0; $y < $h; $y++) {
             for ($x = 0; $x < $w; $x++) {
@@ -180,7 +216,6 @@ class PeriksaAnakController extends Controller
             }
         }
 
-        // Otsu threshold untuk separasi utama
         $total = $w * $h;
         $sum = 0;
         for ($i = 0; $i < 256; $i++) $sum += $i * $hist[$i];
@@ -208,17 +243,16 @@ class PeriksaAnakController extends Controller
             }
         }
 
-        // Threshold tambahan untuk deteksi arch (area dengan tone sedang)
-        $archThresholdLow = $mainThreshold * 0.7;   // Area lebih gelap dari background
-        $archThresholdHigh = $mainThreshold * 1.3;  // Tapi lebih terang dari foreground solid
+        $archThresholdLow = $mainThreshold * 0.7;
+        $archThresholdHigh = $mainThreshold * 1.3;
 
-        // ===== 4) Buat tiga level segmentasi =====
+        // ===== 5) Buat tiga level segmentasi =====
         $bin = imagecreatetruecolor($w, $h);
-        $archMap = imagecreatetruecolor($w, $h);  // Map khusus untuk area arch
+        $archMap = imagecreatetruecolor($w, $h);
 
         $white = imagecolorallocate($bin, 255, 255, 255);
         $black = imagecolorallocate($bin, 0, 0, 0);
-        $gray = imagecolorallocate($bin, 128, 128, 128);  // untuk area arch
+        $gray = imagecolorallocate($bin, 128, 128, 128);
 
         $archWhite = imagecolorallocate($archMap, 255, 255, 255);
         $archBlack = imagecolorallocate($archMap, 0, 0, 0);
@@ -232,34 +266,39 @@ class PeriksaAnakController extends Controller
                 $g = $toneMap[$y][$x];
 
                 if ($g < $mainThreshold) {
-                    // Area gelap - solid foot contact
                     imagesetpixel($bin, $x, $y, $black);
                     imagesetpixel($archMap, $x, $y, $archBlack);
                 } elseif ($g >= $archThresholdLow && $g <= $archThresholdHigh) {
-                    // Area arch - tone sedang
                     imagesetpixel($bin, $x, $y, $gray);
                     imagesetpixel($archMap, $x, $y, $archGray);
                 } else {
-                    // Background
                     imagesetpixel($bin, $x, $y, $white);
                     imagesetpixel($archMap, $x, $y, $archWhite);
                 }
             }
         }
 
-        // ===== 5) Morphological operations dengan pertimbangan arch =====
+        // Save Step 4-5: Thresholding & Segmentation
+        $step4Path = "uploads/processed/step_4_otsu_threshold_{$timestamp}.jpg";
+        imagejpeg($bin, Storage::disk('public')->path($step4Path), 90);
+        $processedImages['step_4_otsu_threshold'] = $step4Path;
+
+        $step5Path = "uploads/processed/step_5_segmentation_{$timestamp}.jpg";
+        imagejpeg($archMap, Storage::disk('public')->path($step5Path), 90);
+        $processedImages['step_5_segmentation'] = $step5Path;
+
+        // ===== 6) Morphological operations =====
         $get = function ($img, $x, $y, $includeArch = false) use ($w, $h) {
             if ($x < 0 || $y < 0 || $x >= $w || $y >= $h) return 0;
             $c = imagecolorsforindex($img, imagecolorat($img, $x, $y));
 
             if ($includeArch) {
-                return ($c['red'] <= 128) ? 1 : 0; // Include both black and gray (arch)
+                return ($c['red'] <= 128) ? 1 : 0;
             } else {
-                return ($c['red'] == 0) ? 1 : 0;   // Only pure black
+                return ($c['red'] == 0) ? 1 : 0;
             }
         };
 
-        // Light morphological operations to preserve arch details
         $tmp = imagecreatetruecolor($w, $h);
         $white2 = imagecolorallocate($tmp, 255, 255, 255);
         $black2 = imagecolorallocate($tmp, 0, 0, 0);
@@ -273,7 +312,6 @@ class PeriksaAnakController extends Controller
                 $isFoot = ($currentPixel['red'] == 0);
 
                 if ($isArch) {
-                    // Preserve arch areas with minimal filtering
                     $archCount = 0;
                     $footCount = 0;
                     for ($dy = -1; $dy <= 1; $dy++) {
@@ -293,7 +331,6 @@ class PeriksaAnakController extends Controller
                         imagesetpixel($tmp, $x, $y, $white2);
                     }
                 } elseif ($isFoot) {
-                    // Standard morphology for solid foot areas
                     $ok = 1;
                     for ($dy = -1; $dy <= 1; $dy++) {
                         for ($dx = -1; $dx <= 1; $dx++) {
@@ -307,12 +344,22 @@ class PeriksaAnakController extends Controller
             }
         }
 
-        // ===== 6) Rotasi =====
+        // Save Step 6: Morphology
+        $step6Path = "uploads/processed/step_6_morphology_{$timestamp}.jpg";
+        imagejpeg($tmp, Storage::disk('public')->path($step6Path), 90);
+        $processedImages['step_6_morphology'] = $step6Path;
+
+        // ===== 7) Rotasi =====
         $rot = imagerotate($tmp, -90, $white2);
         $w = imagesx($rot);
         $h = imagesy($rot);
 
-        // ===== 7) Enhanced bounding box dengan arch consideration =====
+        // Save Step 7: Rotation
+        $step7Path = "uploads/processed/step_7_rotation_{$timestamp}.jpg";
+        imagejpeg($rot, Storage::disk('public')->path($step7Path), 90);
+        $processedImages['step_7_rotation'] = $step7Path;
+
+        // ===== 8) Enhanced bounding box =====
         $top = $h;
         $bot = 0;
         $left = $w;
@@ -321,7 +368,7 @@ class PeriksaAnakController extends Controller
         for ($y = 0; $y < $h; $y++) {
             for ($x = 0; $x < $w; $x++) {
                 $c = imagecolorsforindex($rot, imagecolorat($rot, $x, $y));
-                if ($c['red'] <= 128) { // Include both foot contact and arch areas
+                if ($c['red'] <= 128) {
                     if ($y < $top) $top = $y;
                     if ($y > $bot) $bot = $y;
                     if ($x < $left) $left = $x;
@@ -342,7 +389,16 @@ class PeriksaAnakController extends Controller
         $footLength = max(0, $right - $left);
         $footWidth = max(0, $bot - $top);
 
-        // ===== 8) Enhanced arch detection menggunakan analisis tone =====
+        // Save Step 8: Bounding Box
+        $imBBox = imagecreatefromjpeg(Storage::disk('public')->path($step7Path));
+        $bboxColor = imagecolorallocate($imBBox, 255, 0, 0);
+        imagerectangle($imBBox, $left, $top, $right, $bot, $bboxColor);
+        $step8Path = "uploads/processed/step_8_bounding_box_{$timestamp}.jpg";
+        imagejpeg($imBBox, Storage::disk('public')->path($step8Path), 90);
+        $processedImages['step_8_bounding_box'] = $step8Path;
+        imagedestroy($imBBox);
+
+        // ===== 9) Enhanced arch detection =====
         $yStart = $top + (int)(0.25 * ($bot - $top));
         $yEnd = $top + (int)(0.75 * ($bot - $top));
 
@@ -363,11 +419,11 @@ class PeriksaAnakController extends Controller
             for ($x = $left; $x <= $right; $x++) {
                 $c = imagecolorsforindex($rot, imagecolorat($rot, $x, $y));
 
-                if ($c['red'] == 0) { // Solid foot contact
+                if ($c['red'] == 0) {
                     if ($minX === null) $minX = $x;
                     $maxX = $x;
                     $solidCount++;
-                } elseif ($c['red'] == 128) { // Arch area
+                } elseif ($c['red'] == 128) {
                     if ($archMinX === null) $archMinX = $x;
                     $archMaxX = $x;
                     $archCount++;
@@ -380,11 +436,9 @@ class PeriksaAnakController extends Controller
             if ($minX !== null && $maxX !== null) {
                 $totalWidth = $maxX - $minX + 1;
                 $archRatio = $archCount / max(1, $solidCount + $archCount);
+                $archScore = $totalWidth * (1 - $archRatio * 0.5);
 
-                // Prioritize rows with significant arch presence
-                $archScore = $totalWidth * (1 - $archRatio * 0.5); // Narrower is better, arch presence is considered
-
-                if ($archScore < $minArchWidth && $archRatio > 0.1) { // At least 10% arch area
+                if ($archScore < $minArchWidth && $archRatio > 0.1) {
                     $minArchWidth = $archScore;
                     $bestArchY = $y;
 
@@ -405,12 +459,11 @@ class PeriksaAnakController extends Controller
 
         $S = ['x' => $xS_medial, 'y' => $bestArchY];
 
-        // ===== 9) Enhanced heel detection =====
+        // ===== 10) Enhanced heel detection =====
         $yF = $bot;
         $minXF = null;
         $maxXF = null;
 
-        // Search for heel in bottom rows
         for ($searchY = $bot; $searchY >= $bot - 10 && $searchY >= $top; $searchY--) {
             $tempMinX = null;
             $tempMaxX = null;
@@ -438,14 +491,12 @@ class PeriksaAnakController extends Controller
         $xF = (int)round(($minXF + $maxXF) / 2);
         $F = ['x' => $xF, 'y' => $yF];
 
-        // ===== 10) Enhanced toe detection =====
+        // ===== 11) Enhanced toe detection =====
         $yT = $top;
         $xT = $left;
 
-        // Search for toe in top rows
         for ($searchY = $top; $searchY <= $top + 10 && $searchY <= $bot; $searchY++) {
             if ($xS_medial <= ($left + $right) / 2) {
-                // Medial di sebelah kiri
                 for ($x = $left; $x <= $right; $x++) {
                     $c = imagecolorsforindex($rot, imagecolorat($rot, $x, $searchY));
                     if ($c['red'] <= 128) {
@@ -455,7 +506,6 @@ class PeriksaAnakController extends Controller
                     }
                 }
             } else {
-                // Medial di kanan
                 for ($x = $right; $x >= $left; $x--) {
                     $c = imagecolorsforindex($rot, imagecolorat($rot, $x, $searchY));
                     if ($c['red'] <= 128) {
@@ -471,7 +521,22 @@ class PeriksaAnakController extends Controller
         $T = ['x' => $xT, 'y' => $yT];
         $points = ['toe' => $T, 'arch' => $S, 'heel' => $F];
 
-        // ===== 11) Clarke angle calculation =====
+        // Save Step 9-11: Feature Points Detection
+        $imPoints = imagecreatefromjpeg(Storage::disk('public')->path($step7Path));
+        $redP = imagecolorallocate($imPoints, 255, 0, 0);
+        $greenP = imagecolorallocate($imPoints, 0, 255, 0);
+        $blueP = imagecolorallocate($imPoints, 0, 0, 255);
+
+        imagefilledellipse($imPoints, $T['x'], $T['y'], 10, 10, $redP);
+        imagefilledellipse($imPoints, $S['x'], $S['y'], 10, 10, $greenP);
+        imagefilledellipse($imPoints, $F['x'], $F['y'], 10, 10, $blueP);
+
+        $step9Path = "uploads/processed/step_9_11_feature_points_{$timestamp}.jpg";
+        imagejpeg($imPoints, Storage::disk('public')->path($step9Path), 90);
+        $processedImages['step_9_11_feature_points'] = $step9Path;
+        imagedestroy($imPoints);
+
+        // ===== 12) Clarke angle calculation =====
         $STx = $T['x'] - $S['x'];
         $STy = $T['y'] - $S['y'];
         $SFx = $F['x'] - $S['x'];
@@ -506,43 +571,36 @@ class PeriksaAnakController extends Controller
             return ['error' => 'Gagal menghitung Clarke Angle (hasil tidak valid).'];
         }
 
-        // ===== 12) Enhanced classification with arch area consideration =====
+        // ===== 13) Classification =====
         $archType = "Normal";
         if ($clarkeAngle < 30) $archType = "Flat Foot (Pes Planus)";
         elseif ($clarkeAngle < 45) $archType = "Moderate Arch";
         else $archType = "High Arch (Pes Cavus)";
 
-        // ===== 13) Create enhanced visualization =====
-        $timestamp = time();
+        // ===== 14) Create visualization =====
         $overlay = imagecreatetruecolor($w, $h);
         $whiteOL = imagecolorallocate($overlay, 255, 255, 255);
         imagefilledrectangle($overlay, 0, 0, $w, $h, $whiteOL);
 
-        // Enhanced visualization showing arch areas
         for ($y = 0; $y < $h; $y++) {
             for ($x = 0; $x < $w; $x++) {
                 $c = imagecolorsforindex($rot, imagecolorat($rot, $x, $y));
                 if ($c['red'] == 0) {
-                    // Solid foot contact - black
                     imagesetpixel($overlay, $x, $y, imagecolorallocate($overlay, 0, 0, 0));
                 } elseif ($c['red'] == 128) {
-                    // Arch area - dark gray
                     imagesetpixel($overlay, $x, $y, imagecolorallocate($overlay, 100, 100, 100));
                 } else {
-                    // Background - white
                     imagesetpixel($overlay, $x, $y, $whiteOL);
                 }
             }
         }
 
-        // Draw points and lines
         $red = imagecolorallocate($overlay, 255, 0, 0);
         $blue = imagecolorallocate($overlay, 0, 0, 255);
         $green = imagecolorallocate($overlay, 0, 200, 0);
         $orange = imagecolorallocate($overlay, 255, 140, 0);
         $blackC = imagecolorallocate($overlay, 0, 0, 0);
 
-        // Draw dashed lines
         $drawDashed = function ($img, $x1, $y1, $x2, $y2, $col) {
             $dx = $x2 - $x1;
             $dy = $y2 - $y1;
@@ -561,12 +619,10 @@ class PeriksaAnakController extends Controller
         $drawDashed($overlay, $S['x'], $S['y'], $T['x'], $T['y'], $orange);
         $drawDashed($overlay, $S['x'], $S['y'], $F['x'], $F['y'], $orange);
 
-        // Draw points
         imagefilledellipse($overlay, $S['x'], $S['y'], 8, 8, $green);
         imagefilledellipse($overlay, $T['x'], $T['y'], 8, 8, $red);
         imagefilledellipse($overlay, $F['x'], $F['y'], 8, 8, $blue);
 
-        // Labels
         imagestring($overlay, 3, $T['x'] + 5, $T['y'] - 12, 'T', $blackC);
         imagestring($overlay, 3, $S['x'] + 5, $S['y'] - 12, 'S', $blackC);
         imagestring($overlay, 3, $F['x'] + 5, $F['y'] - 12, 'F', $blackC);
@@ -574,17 +630,18 @@ class PeriksaAnakController extends Controller
 
         $processedFilename = 'processed_' . $timestamp . '.jpg';
         $processedPath = 'uploads/processed/' . $processedFilename;
-        imagejpeg($overlay, Storage::disk('custom_media')->path($processedPath), 90);
+        imagejpeg($overlay, Storage::disk('public')->path($processedPath), 90);
+        $processedImages['step_14_visualization'] = $processedPath;
 
-        // ===== 14) Create enhanced segmented image =====
+        // ===== 15) Create segmented image =====
         $segmented = imagecreatetruecolor($w, $h);
         $whiteS = imagecolorallocate($segmented, 255, 255, 255);
         imagefilledrectangle($segmented, 0, 0, $w, $h, $whiteS);
 
-        $cHeel = imagecolorallocate($segmented, 255, 0, 0);     // Red for heel
-        $cArch = imagecolorallocate($segmented, 0, 255, 0);     // Green for arch
-        $cToe = imagecolorallocate($segmented, 0, 0, 255);      // Blue for toe
-        $cArchTone = imagecolorallocate($segmented, 255, 255, 0); // Yellow for arch tone areas
+        $cHeel = imagecolorallocate($segmented, 255, 0, 0);
+        $cArch = imagecolorallocate($segmented, 0, 255, 0);
+        $cToe = imagecolorallocate($segmented, 0, 0, 255);
+        $cArchTone = imagecolorallocate($segmented, 255, 255, 0);
 
         $regionH = (int)(($bot - $top) / 3);
         $heelTop = $bot - $regionH;
@@ -595,12 +652,10 @@ class PeriksaAnakController extends Controller
             for ($x = $left; $x <= $right; $x++) {
                 $c = imagecolorsforindex($rot, imagecolorat($rot, $x, $y));
 
-                if ($c['red'] <= 128) { // Include both solid and arch areas
+                if ($c['red'] <= 128) {
                     if ($c['red'] == 128) {
-                        // Arch tone area - use special color
                         imagesetpixel($segmented, $x, $y, $cArchTone);
                     } else {
-                        // Solid foot contact - segment by region
                         if ($y < $archTop) {
                             imagesetpixel($segmented, $x, $y, $cToe);
                         } elseif ($y <= $archBottom) {
@@ -615,9 +670,10 @@ class PeriksaAnakController extends Controller
 
         $segFilename = 'segmented_' . $timestamp . '.jpg';
         $segPath = 'uploads/processed/' . $segFilename;
-        imagejpeg($segmented, Storage::disk('custom_media')->path($segPath), 90);
+        imagejpeg($segmented, Storage::disk('public')->path($segPath), 90);
+        $processedImages['step_15_segmented'] = $segPath;
 
-        // ===== 15) Cleanup =====
+        // ===== 16) Cleanup =====
         imagedestroy($im);
         imagedestroy($bin);
         imagedestroy($archMap);
@@ -627,13 +683,16 @@ class PeriksaAnakController extends Controller
         imagedestroy($segmented);
 
         return [
-            'message' => 'Citra berhasil diproses dengan analisis tone yang ditingkatkan!',
+            'message' => 'Citra berhasil diproses dengan FAST dan analisis tone!',
+            'original_path' => $originalPath,
             'processed_image' => $processedPath,
             'segmented_image' => $segPath,
+            'all_process_images' => $processedImages,
             'panjang_telapak_kaki' => $footLength,
             'lebar_telapak_kaki' => $footWidth,
             'clarke_angle' => round($clarkeAngle, 2),
             'arch_type' => $archType,
+            'keypoints' => $keypoints,
             'debug_points' => $points,
             'debug_boundaries' => compact('top', 'bot', 'left', 'right'),
             'thresholds' => [
@@ -643,6 +702,40 @@ class PeriksaAnakController extends Controller
             ],
             'arch_analysis' => $archRegions
         ];
+    }
+
+    // ===== FAST Feature Detection =====
+    private function detectFAST($image, $threshold = 20)
+    {
+        $w = imagesx($image);
+        $h = imagesy($image);
+        $keypoints = [];
+
+        for ($y = 1; $y < $h - 1; $y++) {
+            for ($x = 1; $x < $w - 1; $x++) {
+                $center = imagecolorsforindex($image, imagecolorat($image, $x, $y))['red'];
+                $isKeypoint = true;
+
+                for ($dy = -1; $dy <= 1; $dy++) {
+                    for ($dx = -1; $dx <= 1; $dx++) {
+                        if ($dx == 0 && $dy == 0) continue;
+
+                        $neighbor = imagecolorsforindex($image, imagecolorat($image, $x + $dx, $y + $dy))['red'];
+                        if (abs($center - $neighbor) < $threshold) {
+                            $isKeypoint = false;
+                            break;
+                        }
+                    }
+                    if (!$isKeypoint) break;
+                }
+
+                if ($isKeypoint) {
+                    $keypoints[] = ['x' => $x, 'y' => $y];
+                }
+            }
+        }
+
+        return $keypoints;
     }
 
     public function destroy($id)

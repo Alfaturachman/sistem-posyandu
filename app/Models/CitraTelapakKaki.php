@@ -14,6 +14,8 @@ class CitraTelapakKaki extends Model
     protected $fillable = [
         'id_pemeriksaan',
         'path_citra',
+        'path_original',
+        'path_segmented',
         'panjang_telapak_kaki',
         'lebar_telapak_kaki',
         'clarke_angle',
